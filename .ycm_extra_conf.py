@@ -9,8 +9,9 @@ conf.flags += ['-std=c++11', '-x', 'c++']
 conf.flags += [
 '-Wall',
 '-Wextra',
-'-I',
-'.',
+'-I.',
+'-Iinclude',
+'-Ilib/yaml-cpp/include',
 ]
 
 FlagsForFile = conf.FlagsForFile

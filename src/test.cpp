@@ -1,7 +1,11 @@
 #include <set>
+#include <map>
+
 
 #include "kblas.hpp"
 #include "runtime.hpp"
+
+#include "yaml-cpp/yaml.h"
 
 using namespace std;
 
@@ -29,8 +33,20 @@ int run(Runtime &r, K &k, int toto, ParamsTypes ...params)
 
 
 
-int main()
+int main(int argc, char **argv)
 {
+
+  if (argc > 1) {
+    cout << "Arg : " << argv[1] << "\n";
+    YAML::Node config = YAML::LoadFile(argv[1]);
+    YAML::Node toto = config["scenarii"];
+    map<string, YAML::Node> res;
+    YAML::convert<decltype(res)>::decode(toto, res);
+    cout << toto["toto"] << "\n";
+    auto titi = config["scenarii"].as<map<string, YAML::Node>>();
+    for (auto &elem : titi)
+      cout << elem.first << "/" << elem.second << "\n";
+  }
 
   DGEMM a, b;
 

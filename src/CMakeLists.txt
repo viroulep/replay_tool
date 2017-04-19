@@ -1,10 +1,14 @@
 
-include_directories(${PROJECT_SOURCE_DIR}/include)
 
-find_package(Threads)
+find_package(Threads REQUIRED)
 #FIXME move kernels somewhere else
-find_package(BLAS)
-find_package(LAPACK)
+find_package(BLAS REQUIRED)
+find_package(LAPACK REQUIRED)
+find_package(yaml-cpp REQUIRED)
+
+
+include_directories(${PROJECT_SOURCE_DIR}/include ${YAML_CPP_INCLUDE_DIR})
+
 add_executable(tool test.cpp runtime.cpp kblas.cpp)
 
-target_link_libraries(tool ${CMAKE_THREAD_LIBS_INIT} ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES})
+target_link_libraries(tool ${CMAKE_THREAD_LIBS_INIT} ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES} ${YAML_CPP_LIBRARIES})
