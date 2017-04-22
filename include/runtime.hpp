@@ -47,8 +47,8 @@ class Task {
     const bool flush;
     const std::string name;
 
-    Task(Executable &e, bool sync, bool flush, std::string &&name) : e(e), sync(sync), flush(flush), name(name) {std::cout<<"a\n";};
-    Task(Executable &&e, bool sync, bool flush, std::string &&name) : e(e), sync(sync), flush(flush), name(name) {std::cout<<"b\n";};
+    Task(Executable e, bool sync, bool flush, std::string &&name) : e(e), sync(sync), flush(flush), name(name) {std::cout<<"copy\n";};
+    Task(Executable &&e, bool sync, bool flush, std::string &&name) : e(e), sync(sync), flush(flush), name(name) {std::cout<<"rvalue\n";};
 };
 
 class Watcher {

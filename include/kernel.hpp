@@ -3,19 +3,25 @@
 
 #include <tuple>
 
-template <typename... ArgsTypes>
-class Kernel {
 
-  protected:
+//TODO some wrapper over a generic param
+//with custom llvm rtti
 
-    std::tuple<ArgsTypes...> args;
-
+class KernelParams {
   public:
-    template<typename... ParamsTypes>
-      void init(ParamsTypes... params);
+  virtual ~KernelParams() {};
+};
+
+class Kernel {
+  public:
+    // until I find something better...
+    virtual void init(KernelParams *p) = 0;
 
     virtual void execute() = 0;
 
+    virtual std::string name() { return "Kernel"; };
+
+    virtual KernelParams *buildParams() = 0;
 };
 
 

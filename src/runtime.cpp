@@ -160,6 +160,8 @@ void Runtime::done()
     std::thread &t = entry.second.t;
     entry.second.go = 0;
     t.join();
+  }
+  for (auto &entry : threads) {
     Runtime::watcherSummary(entry.first, entry.second);
     for (Watcher *w : entry.second.watchers_)
       delete w;

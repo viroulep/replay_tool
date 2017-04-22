@@ -11,6 +11,8 @@ conf.flags += [
 '-Wextra',
 '-I.',
 '-Iinclude',
+'-I../include',
+'-I../lib/yaml-cpp/include',
 '-Ilib/yaml-cpp/include',
 ]
 
