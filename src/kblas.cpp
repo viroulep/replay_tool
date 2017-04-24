@@ -7,6 +7,7 @@
 #include <lapacke.h>
 #include <cblas.h>
 #include <numaif.h>
+#include <hwloc.h>
 
 using namespace std;
 
@@ -23,9 +24,12 @@ static unsigned int kaapi_numa_getpage_id(const void* addr)
 void AffinityChecker::init(KernelParams *p)
 {
   int size = 4096*8;
-  double *array;
-  if (posix_memalign((void**)&array, getpagesize(), size))
-    perror("Error allocating memory\n");
+  hwloc_nodeset_t aff = hwloc_bitmap_alloc();
+  hwloc_bitmap_fill(aff);
+  double *array = (double*)hwloc_alloc_membind(topo, size, aff, HWLOC_MEMBIND_FIRSTTOUCH, 0);
+  //if (posix_memalign((void**)&array, getpagesize(), size))
+    //perror("Error allocating memory\n");
+  hwloc_bitmap_free(aff);
   int seed[] = {0,0,0,1};
   LAPACKE_dlarnv(1, seed, size/8, array);
   stringstream ret;
@@ -35,7 +39,7 @@ void AffinityChecker::init(KernelParams *p)
   }
   ret << "\n";
   cout << ret.str();
-  free(array);
+  hwloc_free(topo, array, size);
 }
 
 void DGEMM::init(KernelParams *p) {

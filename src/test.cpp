@@ -45,11 +45,13 @@ Kernel *getKernel(const string &s)
   return ret;
 }
 
+hwloc_topology_t topo;
+
 using Node=YAML::Node;
 
 void exec_on_and_sync(Runtime &r, Task exec, Task phony, int core, int max)
 {
-  for (int i = 0; i < max; i++) {
+  for (int i = 0; i < max; i += 8) {
     if (i == core)
       r.run(i, std::move(exec));
     else
@@ -59,7 +61,8 @@ void exec_on_and_sync(Runtime &r, Task exec, Task phony, int core, int max)
 
 int main(int argc, char **argv)
 {
-
+  hwloc_topology_init(&topo);
+  hwloc_topology_load(topo);
   map<string, Kernel *> kernelInstancesMap;
   map<string, int> paramsInstanceMap;
 
@@ -89,9 +92,10 @@ int main(int argc, char **argv)
 
   set<int> threads;
   threads.insert(0);
-  threads.insert(1);
-  threads.insert(2);
-  threads.insert(3);
+  threads.insert(8);
+  threads.insert(16);
+  threads.insert(24);
+  threads.insert(32);
   //threads.insert(4);
   Runtime r(threads);
   r.addWatcher<CycleWatcher>();
@@ -137,11 +141,12 @@ int main(int argc, char **argv)
     //if (i == 0)
       //r.run(i, Task([]{ cout << "coucou\n"; }, false, false, "task"));
   //}
-  for (int i = 0; i < 100; i++) {
-    exec_on_and_sync(r, initTask, phonytask, 0, 4);
-    exec_on_and_sync(r, initTask, phonytask, 1, 4);
-    exec_on_and_sync(r, initTask, phonytask, 2, 4);
-    exec_on_and_sync(r, initTask, phonytask, 3, 4);
+  for (int i = 0; i < 10; i++) {
+    exec_on_and_sync(r, initTask, phonytask, 0, 33);
+    exec_on_and_sync(r, initTask, phonytask, 8, 33);
+    exec_on_and_sync(r, initTask, phonytask, 16, 33);
+    exec_on_and_sync(r, initTask, phonytask, 24, 33);
+    exec_on_and_sync(r, initTask, phonytask, 32, 33);
   }
   //this_thread::sleep_for(chrono::seconds(1));
 
@@ -165,5 +170,6 @@ int main(int argc, char **argv)
 
   r.done();
 
+  hwloc_topology_destroy(topo);
   return 0;
 }

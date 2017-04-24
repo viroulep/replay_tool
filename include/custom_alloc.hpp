@@ -5,6 +5,7 @@
 #include <utility>
 #include <stdlib.h>
 #include <unistd.h>
+#include <hwloc.h>
 
 template<std::size_t I = 0, typename FuncT, typename... Tp, typename... Pp>
   inline typename std::enable_if<I == sizeof...(Tp), void>::type
@@ -42,5 +43,7 @@ void custom_allocate(T **a, size_t size) {
     free(*a);
   *a = new(tmp) T[size];
 }
+
+extern hwloc_topology_t topo;
 
 #endif
