@@ -2,21 +2,22 @@
 #define CUSTOM_ALLOC_H
 
 #include <tuple>
+#include <array>
 #include <utility>
 #include <stdlib.h>
 #include <unistd.h>
 #include <hwloc.h>
 
-template<std::size_t I = 0, typename FuncT, typename... Tp, typename... Pp>
+template<std::size_t I = 0, typename FuncT, typename... Tp>
   inline typename std::enable_if<I == sizeof...(Tp), void>::type
-for_each(std::tuple<Tp...> &, std::tuple<Pp...> &, FuncT)
+for_each(std::tuple<Tp...> &, std::array<std::size_t, sizeof...(Tp)> &, FuncT)
 { }
 
-template<std::size_t I = 0, typename FuncT, typename... Tp, typename... Pp>
+template<std::size_t I = 0, typename FuncT, typename... Tp>
   inline typename std::enable_if<I < sizeof...(Tp), void>::type
-for_each(std::tuple<Tp...>& t, std::tuple<Pp...> &p, FuncT f)
+for_each(std::tuple<Tp...>& t, std::array<std::size_t, sizeof...(Tp)> &p, FuncT f)
 {
-  f(&std::get<I>(t), std::get<I>(p));
+  f(&std::get<I>(t), p[I]);
   for_each<I + 1, FuncT, Tp...>(t, p, f);
 }
 

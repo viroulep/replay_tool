@@ -4,8 +4,6 @@
 
 #include <iostream>
 #include <sstream>
-#include <lapacke.h>
-#include <cblas.h>
 #include <numaif.h>
 #include <hwloc.h>
 
@@ -21,7 +19,7 @@ static unsigned int kaapi_numa_getpage_id(const void* addr)
   return mode;
 }
 
-void AffinityChecker::init(KernelParams *p)
+void AffinityChecker::init(const vector<Param *> &)
 {
   int size = 4096*8;
   hwloc_nodeset_t aff = hwloc_bitmap_alloc();
@@ -42,40 +40,34 @@ void AffinityChecker::init(KernelParams *p)
   hwloc_free(topo, array, size);
 }
 
-void DGEMM::init(KernelParams *p) {
-  BlasParams *casted = dynamic_cast<BlasParams *>(p);
-  init(casted->sizeA);
-}
-
-void DGEMM::init(int size)
+void DGEMM::init(const vector<Param *> &V)
 {
-  totalSize = size*size;
-  leadingDimension = size;
-  BlasKernel::init(totalSize, totalSize, totalSize);
-  double *a, *b, *c;
-  tie(a, b, c) = args;
-  int seed[] = {0,0,0,1};
-  LAPACKE_dlarnv(1, seed, totalSize, a);
-  LAPACKE_dlarnv(1, seed, totalSize, b);
-  LAPACKE_dlarnv(1, seed, totalSize, c);
+  ParamInt *sizeParam = getNthParam<0, int>(V);
+  // We *need* at least one size
+  assert(sizeParam);
+  ArgsSizes[0] = sizeParam->get();
+  ArgsSizes[1] = ((sizeParam = getNthParam<1, int>(V))) ? sizeParam->get() : ArgsSizes.front();
+  ArgsSizes[2] = ((sizeParam = getNthParam<2, int>(V))) ? sizeParam->get() : ArgsSizes.front();
+
+  BlasKernel::init();
 }
 
 void DGEMM::show()
 {
   double *a, *b, *c;
-  tie(a, b, c) = args;
+  tie(a, b, c) = Args;
   cout << "start\n";
-  for (unsigned long i = 0; i < totalSize; i++) {
+  for (unsigned long i = 0; i < ArgsSizes[2]*ArgsSizes[2]; i++) {
     cout << c[i] << ", ";
-    if ((i+1) % leadingDimension == 0)
+    if ((i+1) % ArgsSizes[2] == 0)
       cout << "\n";
   }
   cout << "\nend\n";
 }
 
-void DGEMM::execute() {
+void DGEMM::execute(const vector<Param *> &) {
   double *a, *b, *c;
-  tie(a, b, c) = args;
-  cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, leadingDimension, leadingDimension, leadingDimension, 1,
-              a, leadingDimension, b, leadingDimension, 1, c, leadingDimension);
+  tie(a, b, c) = Args;
+  cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, ArgsSizes[0], ArgsSizes[1], ArgsSizes[2], 1,
+              a, ArgsSizes[0], b, ArgsSizes[1], 1, c, ArgsSizes[2]);
 }

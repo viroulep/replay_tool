@@ -134,6 +134,11 @@ void Runtime::work(int threadId) {
   }
 }
 
+void Runtime::run(int thread, Task &code)
+{
+  run(thread, move(code));
+}
+
 void Runtime::run(int thread, Task &&code)
 {
   if (threads.count(thread) != 1) {
@@ -156,9 +161,11 @@ void Runtime::watcherSummary(int id, const Thread &t)
 
 void Runtime::done()
 {
+  // Two separate loop to avoid thread spinning on 'go' while joining!
+  for (auto &entry : threads)
+    entry.second.go = 0;
   for (auto &entry : threads) {
     std::thread &t = entry.second.t;
-    entry.second.go = 0;
     t.join();
   }
   for (auto &entry : threads) {

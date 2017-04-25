@@ -1,28 +1,69 @@
 #ifndef KERNEL_H
 #define KERNEL_H
 
-#include <tuple>
-
+#include <string>
+#include <vector>
+#include <functional>
+#include "Support/Casting.h"
 
 //TODO some wrapper over a generic param
 //with custom llvm rtti
 
-class KernelParams {
-  public:
-  virtual ~KernelParams() {};
-};
+class Param;
 
 class Kernel {
   public:
     // until I find something better...
-    virtual void init(KernelParams *p) = 0;
+    virtual void init(const std::vector<Param *> &V) = 0;
 
-    virtual void execute() = 0;
+    virtual void execute(const std::vector<Param *> &V) = 0;
 
     virtual std::string name() { return "Kernel"; };
 
-    virtual KernelParams *buildParams() = 0;
 };
+
+enum ParamKind {
+#define KERNEL_PARAM_KIND(Name)\
+  PK_##Name,
+#define KERNEL_PARAM_KIND_PTR(Name)\
+  PK_p##Name,
+#include "KernelParams.def"
+  PK_unknown
+};
+
+class Param {
+  const ParamKind Kind;
+public:
+  Param(ParamKind K) : Kind(K) {}
+  ParamKind getKind() const { return Kind; }
+  virtual ~Param() {};
+};
+
+template<typename T>
+class ParamImpl : public Param {
+  T Value;
+public:
+  ParamImpl(T V);
+
+  T get() { return Value; }
+
+  static bool classof(const Param *P);
+};
+
+template<std::size_t N, typename T>
+ParamImpl<T> *getNthParam(const std::vector<Param *> &V)
+{
+  std::size_t index = 0;
+  ParamImpl<T> *ret;
+  for (Param *P : V) {
+    if ((ret = dyn_cast<ParamImpl<T>>(P))) {
+      if (index++ == N)
+        return ret;
+    }
+  }
+  return nullptr;
+}
+
 
 
 #endif
