@@ -11,15 +11,29 @@
 
 class Param;
 
+enum KernelKind {
+  KK_AffinityChecker,
+  KK_DGEMM,
+  KK_unknown
+};
+
+KernelKind getKernelKind(const std::string &name);
+
 class Kernel {
+  const KernelKind Kind;
+
   public:
-    // until I find something better...
+    Kernel(KernelKind K) : Kind(K) {}
+    KernelKind getKind() const { return Kind; }
+    virtual ~Kernel() {}
+
     virtual void init(const std::vector<Param *> &V) = 0;
 
     virtual void execute(const std::vector<Param *> &V) = 0;
 
-    virtual std::string name() { return "Kernel"; };
+    std::string name();
 
+    static Kernel *createKernel(const std::string &name);
 };
 
 enum ParamKind {

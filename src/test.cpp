@@ -70,17 +70,6 @@ int run(Runtime &r, K &k, int toto, ParamsTypes ...params)
 //Un visitor qui prend name->type
 //
 
-Kernel *getKernel(const string &s)
-{
-  Kernel *ret = nullptr;
-  // FIXME: import kernels at compile time
-  // FIXME: -fno-rtti and custom rtti
-  if (s == "DGEMM") {
-    ret = (Kernel *)(new DGEMM);
-  }
-  return ret;
-}
-
 hwloc_topology_t topo;
 
 using Node=YAML::Node;
@@ -128,7 +117,7 @@ int main(int argc, char **argv)
     cout << "Detecting kernels:\n";
     for (auto &entry : kernels) {
       cout << "Entry is: " << entry.first;
-      Kernel *k = getKernel(entry.second["type"].as<string>());
+      Kernel *k = Kernel::createKernel(entry.second["type"].as<string>());
       cout << " Instanciated kernel is: ";
       if (k)
         cout << k->name() << "\n";
@@ -146,8 +135,8 @@ int main(int argc, char **argv)
 
 
   set<int> threads;
-  threads.insert(0);
-  threads.insert(4);
+  //threads.insert(0);
+  //threads.insert(1);
   //threads.insert(2);
   //threads.insert(3);
   //threads.insert(32);
@@ -158,7 +147,7 @@ int main(int argc, char **argv)
   r.addWatcher<SyncWatcher>();
 
   DGEMM d1, d2, d3;
-  AffinityChecker a1;
+  AffinityChecker *a1 = cast<AffinityChecker>(Kernel::createKernel("AffinityChecker"));
 
   Executable phony = [] {
     ;
@@ -168,13 +157,15 @@ int main(int argc, char **argv)
     d1.execute(vector<Param *>());
   };
 
-  Executable initA1 = [&] {
-    a1.init(vector<Param *>());
+  Executable initA1 = [a1] {
+    a1->init(vector<Param *>());
   };
 
   Executable &&toto = [&] {
     cout << "toto\n";
   };
+
+  initA1();
 
   Task initTask = Task(initA1, true, false, "test");
   Task phonytask = Task(phony, true, false, "phony");
@@ -193,10 +184,12 @@ int main(int argc, char **argv)
   //Task tExec2(execCode, true, false, "Texecbis");
   //Task t2Exec2(make_exec(d2), true, false, "T2execbis");
 
-  r.run(0, t2);
-  r.run(0, t2Exec);
-  r.run(4, t3);
-  r.run(4, t3Exec);
+  //r.run(0, t2);
+  //r.run(0, t2Exec);
+  //r.run(1, t3);
+  //r.run(1, t3Exec);
+  //r.run(0, initTask);
+  //r.run(1, phonytask);
   //for (int i = 0; i < 4; i++) {
     //if (i == 0)
       //r.run(i, Task([]{ cout << "coucou\n"; }, false, false, "task"));
@@ -229,6 +222,8 @@ int main(int argc, char **argv)
 
 
   r.done();
+
+  delete a1;
 
   hwloc_topology_destroy(topo);
   return 0;

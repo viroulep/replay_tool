@@ -49,7 +49,7 @@ void DGEMM::init(const vector<Param *> &V)
   ArgsSizes[1] = ((sizeParam = getNthParam<1, int>(V))) ? sizeParam->get() : ArgsSizes.front();
   ArgsSizes[2] = ((sizeParam = getNthParam<2, int>(V))) ? sizeParam->get() : ArgsSizes.front();
 
-  BlasKernel::init();
+  BlasArgs::init();
 }
 
 void DGEMM::show()
