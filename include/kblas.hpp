@@ -7,12 +7,13 @@
 #include <cblas.h>
 
 using ParamInt = ParamImpl<int>;
+using ParamKernel = ParamImpl<Kernel *>;
 
 class AffinityChecker : public Kernel {
 public:
   AffinityChecker() : Kernel(KK_AffinityChecker) {}
-  virtual void init(const std::vector<Param *> &V);
-  virtual void execute(const std::vector<Param *> &) {};
+  virtual void init(const std::vector<Param *> *V);
+  virtual void execute(const std::vector<Param *> *) {};
   static bool classof(const Kernel *K) { return K->getKind() == KK_AffinityChecker; }
 };
 
@@ -28,9 +29,9 @@ static void allocateAndInit(T **A, size_t size)
 // Blas are special as they operate on the same data type
 template <typename... ArgsTypes>
 class BlasArgs {
-  using BaseElemType = typename std::remove_pointer<typename std::tuple_element<0, std::tuple<ArgsTypes...>>::type>::type;
-
 protected:
+
+  using BaseElemType = typename std::remove_pointer<typename std::tuple_element<0, std::tuple<ArgsTypes...>>::type>::type;
 
   std::tuple<ArgsTypes...> Args;
   std::array<std::size_t, sizeof...(ArgsTypes)> ArgsSizes;
@@ -53,11 +54,11 @@ public:
 
   DGEMM() : BlasArgs(), Kernel(KK_DGEMM) {}
 
-  void init(const std::vector<Param *> &V);
+  void init(const std::vector<Param *> *V);
 
   void show();
 
-  void execute(const std::vector<Param *> &);
+  void execute(const std::vector<Param *> *);
 
   static bool classof(const Kernel *K) { return K->getKind() == KK_DGEMM; }
 };

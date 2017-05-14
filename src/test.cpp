@@ -45,6 +45,7 @@ public:
 };
 
 
+/*
 template<typename K>
 std::function<void()> make_init(K &k, ParamInt &V)
 {
@@ -66,6 +67,7 @@ int run(Runtime &r, K &k, int toto, ParamsTypes ...params)
   r.run(toto, make_exec(k));
   //this_thread::sleep_for(chrono::seconds(1));
 }
+*/
 
 //Un visitor qui prend name->type
 //
@@ -153,22 +155,22 @@ int main(int argc, char **argv)
     ;
   };
 
-  Executable execCode1 = [&] {
-    d1.execute(vector<Param *>());
-  };
+  //Executable execCode1 = [&] {
+    //d1.execute(vector<Param *>());
+  //};
 
-  Executable initA1 = [a1] {
-    a1->init(vector<Param *>());
-  };
+  //Executable initA1 = [a1] {
+    //a1->init(vector<Param *>());
+  //};
 
-  Executable &&toto = [&] {
-    cout << "toto\n";
-  };
+  //Executable &&toto = [&] {
+    //cout << "toto\n";
+  //};
 
-  initA1();
+  //initA1();
 
-  Task initTask = Task(initA1, true, false, "test");
-  Task phonytask = Task(phony, true, false, "phony");
+  //Task initTask = Task(initA1, true, false, 1, "test");
+  Task phonytask = Task(phony, true, false, 1, "phony");
 
   ParamInt defaultSize(4096);
 
@@ -176,11 +178,11 @@ int main(int argc, char **argv)
   //Task t_2(make_init(a1, nullptr), true, false, "Tinit");
   //Task t_3(make_init(a1, nullptr), true, false, "Tinit");
   //Task t_4(make_init(a1, nullptr), true, false, "Tinit");
-  Task t2(make_init(d2, defaultSize), false, false, "T2init");
-  Task t3(make_init(d3, defaultSize), false, false, "T3init");
+  //Task t2(make_init(d2, defaultSize), false, false, 1, "T2init");
+  //Task t3(make_init(d3, defaultSize), false, false, 1, "T3init");
   //Task tExec(make_exec(d1), true, false, "Texec");
-  Task t2Exec(make_exec(d2), true, false, "T2exec");
-  Task t3Exec(make_exec(d3), true, false, "T3exec");
+  //Task t2Exec(make_exec(d2), true, false, 1, "T2exec");
+  //Task t3Exec(make_exec(d3), true, false, 1, "T3exec");
   //Task tExec2(execCode, true, false, "Texecbis");
   //Task t2Exec2(make_exec(d2), true, false, "T2execbis");
 

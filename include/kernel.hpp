@@ -2,9 +2,11 @@
 #define KERNEL_H
 
 #include <string>
+#include <sstream>
 #include <vector>
 #include <functional>
 #include "Support/Casting.h"
+#include "yaml-cpp/yaml.h"
 
 //TODO some wrapper over a generic param
 //with custom llvm rtti
@@ -27,11 +29,11 @@ class Kernel {
     KernelKind getKind() const { return Kind; }
     virtual ~Kernel() {}
 
-    virtual void init(const std::vector<Param *> &V) = 0;
+    virtual void init(const std::vector<Param *> *V) = 0;
 
-    virtual void execute(const std::vector<Param *> &V) = 0;
+    virtual void execute(const std::vector<Param *> *V) = 0;
 
-    std::string name();
+    std::string name() const;
 
     static Kernel *createKernel(const std::string &name);
 };
@@ -45,13 +47,22 @@ enum ParamKind {
   PK_unknown
 };
 
+ParamKind getParamKind(const std::string &name);
+
 class Param {
+protected:
   const ParamKind Kind;
 public:
   Param(ParamKind K) : Kind(K) {}
   ParamKind getKind() const { return Kind; }
   virtual ~Param() {};
+  std::string toString() const;
+
+  static Param *createParam(const std::string &name, const YAML::Node &value);
 };
+
+std::ostream& operator<<(std::ostream& os, const Kernel *obj);
+
 
 template<typename T>
 class ParamImpl : public Param {
@@ -59,7 +70,15 @@ class ParamImpl : public Param {
 public:
   ParamImpl(T V);
 
+  T get() const { return Value; }
   T get() { return Value; }
+
+  std::string toString() const
+  {
+    std::stringstream ss;
+    ss << Value;
+    return ss.str();
+  }
 
   static bool classof(const Param *P);
 };

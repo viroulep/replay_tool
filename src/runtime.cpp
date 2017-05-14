@@ -183,6 +183,9 @@ void Runtime::initThreads(const set<int> &physIds)
     cpu_set_t cpuset;
     CPU_ZERO(&cpuset);
     CPU_SET(cpuId, &cpuset);
+    // Not sure why, but it helps with some cases I had where
+    // the native_handle was null!
+    this_thread::sleep_for(chrono::milliseconds(200));
     int rc = pthread_setaffinity_np(threads[cpuId].t.native_handle(),
                                     sizeof(cpu_set_t), &cpuset);
     if (rc != 0) {

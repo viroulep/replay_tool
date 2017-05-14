@@ -19,7 +19,7 @@ static unsigned int kaapi_numa_getpage_id(const void* addr)
   return mode;
 }
 
-void AffinityChecker::init(const vector<Param *> &)
+void AffinityChecker::init(const vector<Param *> *)
 {
   int size = 4096*8;
   hwloc_nodeset_t aff = hwloc_bitmap_alloc();
@@ -40,16 +40,29 @@ void AffinityChecker::init(const vector<Param *> &)
   hwloc_free(topo, array, size);
 }
 
-void DGEMM::init(const vector<Param *> &V)
+void DGEMM::init(const vector<Param *> *VP)
 {
-  ParamInt *sizeParam = getNthParam<0, int>(V);
-  // We *need* at least one size
-  assert(sizeParam);
-  ArgsSizes[0] = sizeParam->get();
-  ArgsSizes[1] = ((sizeParam = getNthParam<1, int>(V))) ? sizeParam->get() : ArgsSizes.front();
-  ArgsSizes[2] = ((sizeParam = getNthParam<2, int>(V))) ? sizeParam->get() : ArgsSizes.front();
+  const vector<Param *> &V = *VP;
 
-  BlasArgs::init();
+  ParamInt *sizeParam = getNthParam<0, int>(V);
+  ParamKernel *kernelParam = getNthParam<0, Kernel *>(V);
+  DGEMM *refKernel = kernelParam ? dyn_cast<DGEMM>(kernelParam->get()) : nullptr;
+  // We *need* at least one param
+  assert(sizeParam || refKernel);
+  if (refKernel) {
+    ArgsSizes[0] = refKernel->ArgsSizes[0];
+    ArgsSizes[1] = refKernel->ArgsSizes[1];
+    ArgsSizes[2] = refKernel->ArgsSizes[2];
+    // Build read data from remote kernel.
+    get<0>(Args) = get<0>(refKernel->Args);
+    get<1>(Args) = get<1>(refKernel->Args);
+    allocateAndInit<BaseElemType>(&get<2>(Args), ArgsSizes[2]);
+  } else {
+    ArgsSizes[0] = sizeParam->get();
+    ArgsSizes[1] = ((sizeParam = getNthParam<1, int>(V))) ? sizeParam->get() : ArgsSizes.front();
+    ArgsSizes[2] = ((sizeParam = getNthParam<2, int>(V))) ? sizeParam->get() : ArgsSizes.front();
+    BlasArgs::init();
+  }
 }
 
 void DGEMM::show()
@@ -65,7 +78,7 @@ void DGEMM::show()
   cout << "\nend\n";
 }
 
-void DGEMM::execute(const vector<Param *> &) {
+void DGEMM::execute(const vector<Param *> *) {
   double *a, *b, *c;
   tie(a, b, c) = Args;
   cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, ArgsSizes[0], ArgsSizes[1], ArgsSizes[2], 1,

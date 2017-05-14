@@ -45,10 +45,10 @@ class Task {
     const Executable e;
     const bool sync;
     const bool flush;
+    const int repeat;
     const std::string name;
 
-    Task(Executable e, bool sync, bool flush, std::string &&name) : e(std::move(e)), sync(sync), flush(flush), name(name) {std::cout<<"copy\n";};
-    //Task(Executable &&e, bool sync, bool flush, std::string &&name) : e(e), sync(sync), flush(flush), name(name) {std::cout<<"rvalue\n";};
+    Task(Executable e, bool sync, bool flush, int repeat, const std::string &name) : e(std::move(e)), sync(sync), flush(flush), repeat(repeat), name(name) {};
 };
 
 class Watcher {

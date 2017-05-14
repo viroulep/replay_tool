@@ -1,33 +1,39 @@
 scenarii:
-  kernels:
-    tchoup:
+  params:
+    blocksize:
+      type: "int"
+      range: [256, 512]
+      # first, last, step
+      # TODO: implement this
+      #for: [256, 512, 256]
+    # We may want to express [(1,2), (2,1)] and use 'init_core[0]'/'init_core[1]'
+    #init_core: [1, 2]
+  data:
+    default_blocksize:
+      type: "int"
+      value: 4096
+    dgemm1:
       type: "DGEMM"
-    blah:
+    dgemm2:
       type: "DGEMM"
-  execution:
-    execution_params:
-      blocksize: [256, 512]
-        # first, last, step
-        # TODO: implement this
-        #for: [256, 512, 256]
-      # We may want to express [(1,2), (2,1)] and use 'init_core[0]'/'init_core[1]'
-      init_core: [1, 2]
-    scenario:
-      tchoup:
-        init:
-          params: ["blocksize"]
-          core: "init_core"
-      blah:
-        init:
-          params: ["tchoup"]
-          core: "init_core"
-      tchoup:
-        exec:
-          core: 2
-          repeat: 2
-          sync: true
-      blah:
-        exec:
-          core: 1
-          repeat: 2
-          sync: true
+  actions:
+    - action: "init"
+      kernel: "dgemm1"
+      params: ["default_blocksize"]
+      core: 1
+      #FIXME find a better name for this
+    - action: "init"
+      kernel: "dgemm2"
+      params: ["default_blocksize"]
+      core: 2
+    - sync
+    - action: "exec"
+      kernel: "dgemm1"
+      core: 1
+      repeat: 2
+      sync: true
+    - action: "exec"
+      kernel: "dgemm2"
+      core: 2
+      repeat: 2
+      sync: true
