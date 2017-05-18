@@ -12,28 +12,63 @@ scenarii:
     default_blocksize:
       type: "int"
       value: 4096
-    dgemm1:
-      type: "DGEMM"
-    dgemm2:
-      type: "DGEMM"
+    a:
+      #array: 12  #tableau de 12 double*
+      type: "double*"
+    b:
+      type: "double*"
+    c:
+      type: "double*"
+    aa:
+      type: "double*"
+    bb:
+      type: "double*"
+    cc:
+      type: "double*"
   actions:
-    - action: "init"
-      kernel: "dgemm1"
-      params: ["default_blocksize"]
+    # Idée de scenario : exec sur core i, init sur core i+12
+    # triad, axpy, copy (stream) dans tout les sens
+    # trsm: lecture 0 tout le monde lis
+    # gemm tous local, saturer, puis saturer avec tous pas local
+    # expérience simple du gemm tout bête
+    # scaler avec la machine...
+    #- repeat_actions:
+      #- params:
+        #core: [0, 12]
+      #- action: "init_array"
+        #params: ["a"]
+        #core: "core"
+      #- action: "dgemm"
+        #params: ["a"]
+        #core: "core"
+    - kernel: "init_blas_bloc"
+      params: ["a", "default_blocksize"]
       core: 1
-      #FIXME find a better name for this
-    - action: "init"
-      kernel: "dgemm2"
-      params: ["default_blocksize"]
-      core: 2
+    - kernel: "init_blas_bloc"
+      params: ["b", "default_blocksize"]
+      core: 1
+    - kernel: "init_blas_bloc"
+      params: ["c", "default_blocksize"]
+      core: 1
+    - kernel: "init_blas_bloc"
+      params: ["aa", "default_blocksize"]
+      core: 5
+    - kernel: "init_blas_bloc"
+      params: ["bb", "default_blocksize"]
+      core: 5
+    - kernel: "init_blas_bloc"
+      params: ["cc", "default_blocksize"]
+      core: 5
     - sync
-    - action: "exec"
-      kernel: "dgemm1"
+    - kernel: "dgemm"
+      params: ["a", "b", "c", "default_blocksize"]
       core: 1
       repeat: 2
+      flush: true
       sync: true
-    - action: "exec"
-      kernel: "dgemm2"
-      core: 2
+    - kernel: "dgemm"
+      params: ["aa", "bb", "cc", "default_blocksize"]
+      core: 5
       repeat: 2
+      flush: true
       sync: true

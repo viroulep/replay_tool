@@ -1,9 +1,11 @@
 #include <set>
 #include <map>
 #include <memory>
+#include <hwloc.h>
 
 
-#include "kblas.hpp"
+#include "KernelsBlas.hpp"
+#include "KernelsCheck.hpp"
 #include "runtime.hpp"
 
 #include "yaml-cpp/yaml.h"
@@ -13,73 +15,25 @@
 using namespace std;
 
 
-/*
-template<typename K>
-std::function<void()> make_init(K &k, ParamInt &V)
-{
-  return [&] { k.init(vector<Param *>({&V})); };
-}
-
-template<typename K>
-std::function<void()> make_init(K &k, vector<Param *> V)
-{
-  return [=, &k] { k.init(V); };
-}
-
-template<typename K, typename... ParamsTypes>
-std::function<void()> make_exec(K &k)
-{
-  return [&k] { k.execute(vector<Param *>()); };
-}
-*/
-
-template<typename K, typename... ParamsTypes>
-int run(Runtime &r, K &k, int toto, ParamsTypes ...params)
-{
-  Executable init = make_init(k, params...);
-  Executable exec = make_exec(k);
-  r.run(toto, make_init(k, params...));
-  r.run(toto, make_exec(k));
-  //this_thread::sleep_for(chrono::seconds(1));
-}
-
-//Un visitor qui prend name->type
-//
 
 hwloc_topology_t topo;
 
 using Node=YAML::Node;
 using NodeType=YAML::NodeType;
 
-Executable make_action(Kernel *K, vector<Param *> *V, const string &Action)
-{
-  cout << "Vsize(1): " << V->size() << "\n";
-  cout << "V:" << V << "\n";
-  vector<Param *> *titi = V;
-  if (Action == "init")
-    return [K, titi] { cout << "V:" << titi << "\n" << "Vsize: " << titi->size() << "\n"; K->init(titi); };
-  else if (Action == "exec")
-    return [K] { K->execute(nullptr); };
-  else
-    return [=] { ; };
-}
-
 int main(int argc, char **argv)
 {
   hwloc_topology_init(&topo);
   hwloc_topology_load(topo);
-  map<string, Kernel *> kernelInstancesMap;
   map<string, int> paramsInstanceMap;
   map<string, Param *> dataMap;
   // FIXME: annoying to manage...
   set<vector<Param *> *> paramsAllocated;
+  Runtime::kernels_.insert(make_pair("init_blas_bloc", init_blas_bloc));
+  Runtime::kernels_.insert(make_pair("dgemm", kernel_dgemm));
+  Runtime::kernels_.insert(make_pair("check_affinity", check_affinity));
 
   vector<Node> actions;
-
-  ParamImpl<Kernel *> AParam(nullptr);
-  vector<Param *> v({ &AParam });
-  cout << "Kernel: " << getNthParam<0, Kernel *>(v) << "\n";
-  cout << "int: " << getNthParam<0, int>(v) << "\n";
 
   if (argc > 1) {
     // Get variables
@@ -133,7 +87,7 @@ int main(int argc, char **argv)
   Runtime runtime(cores);
   runtime.addWatcher<CycleWatcher>();
   runtime.addWatcher<TimeWatcher>();
-  runtime.addWatcher<SyncWatcher>();
+  //runtime.addWatcher<SyncWatcher>();
   // TODO: perfcounter watcher
 
   for (auto &a : actions) {
@@ -150,14 +104,13 @@ int main(int argc, char **argv)
           auto actionInfo = a.as<map<string, Node>>();
           int core = actionInfo["core"].as<int>();
           string kernelName = actionInfo["kernel"].as<string>();
-          string actionName = actionInfo["action"].as<string>();
           bool sync = false;
           if (!actionInfo["sync"].IsNull())
             sync = actionInfo["sync"].as<bool>();
           vector<Param *> *params = new vector<Param *>;
           paramsAllocated.insert(params);
 
-          cout << "-- Task creation: " << kernelName << "." << actionName;
+          cout << "-- Task creation: " << kernelName;
           if (actionInfo["params"].IsSequence()) {
             for (string &paramName : actionInfo["params"].as<vector<string>>()) {
               cout << ", " << paramName;
@@ -167,17 +120,10 @@ int main(int argc, char **argv)
           cout << ", on core " << core;
           cout << ", sync: " << sync << "\n";
 
-          ParamImpl<Kernel *> *pk = dyn_cast_or_null<ParamImpl<Kernel *>>(dataMap[kernelName]);
-          if (pk) {
-            Kernel *k = pk->get();
+          if (Runtime::kernels_.find(kernelName) != Runtime::kernels_.end()) {
             // FIXME: That's ugly :(
-            if (actionName == "init") {
-              Executable e = [=] { k->init(params); };
-              runtime.run(core, Task(e, sync, false, 1, kernelName+"/"+actionName));
-            } else if (actionName == "exec") {
-              Executable e = [=] { k->execute(nullptr); };
-              runtime.run(core, Task(e, sync, false, 1, kernelName+"/"+actionName));
-            }
+            runtime.run(core, Task(kernelName, params, sync, false, 1, kernelName));
+            ;
           } else {
             cout << "Can't find kernel " << kernelName << "\n";
           }
@@ -195,7 +141,10 @@ int main(int argc, char **argv)
   runtime.done();
   for (auto *p : paramsAllocated)
     delete p;
+  for (auto &entry : dataMap)
+    delete entry.second;
 
+  hwloc_topology_destroy(topo);
   return 0;
 #if 0
 

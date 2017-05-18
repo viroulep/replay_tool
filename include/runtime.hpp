@@ -43,12 +43,15 @@ public:
 class Task {
   public:
     const Executable e;
+    const std::string kernelName;
+    const std::vector<Param *> *kernelParams;
     const bool sync;
     const bool flush;
     const int repeat;
     const std::string name;
 
     Task(Executable e, bool sync, bool flush, int repeat, const std::string &name) : e(std::move(e)), sync(sync), flush(flush), repeat(repeat), name(name) {};
+    Task(const std::string &kernelName, const std::vector<Param *> *kernelParams, bool sync, bool flush, int repeat, const std::string &name) : kernelName(kernelName), kernelParams(kernelParams), e([]{}), sync(sync), flush(flush), repeat(repeat), name(name) {};
 };
 
 class Watcher {
@@ -134,6 +137,7 @@ class Runtime {
 
   static void watcherSummary(int id, const Thread &t);
 
+  static std::map<std::string, KernelFunction> kernels_;
 };
 
 #endif

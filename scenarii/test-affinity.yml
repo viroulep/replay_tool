@@ -1,0 +1,10 @@
+# gemm -> asm, changer tous les load pour que ça tape dans le L1
+# objectif : c'est con mais c'est la borne min
+scenarii:
+  params: {}
+  data: {}
+  actions:
+    - kernel: "check_affinity"
+      params: []
+      repeat: 3
+      core: 1

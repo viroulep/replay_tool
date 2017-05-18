@@ -8,35 +8,7 @@
 #include "Support/Casting.h"
 #include "yaml-cpp/yaml.h"
 
-//TODO some wrapper over a generic param
-//with custom llvm rtti
 
-class Param;
-
-enum KernelKind {
-  KK_AffinityChecker,
-  KK_DGEMM,
-  KK_unknown
-};
-
-KernelKind getKernelKind(const std::string &name);
-
-class Kernel {
-  const KernelKind Kind;
-
-  public:
-    Kernel(KernelKind K) : Kind(K) {}
-    KernelKind getKind() const { return Kind; }
-    virtual ~Kernel() {}
-
-    virtual void init(const std::vector<Param *> *V) = 0;
-
-    virtual void execute(const std::vector<Param *> *V) = 0;
-
-    std::string name() const;
-
-    static Kernel *createKernel(const std::string &name);
-};
 
 enum ParamKind {
 #define KERNEL_PARAM_KIND(Name)\
@@ -61,7 +33,7 @@ public:
   static Param *createParam(const std::string &name, const YAML::Node &value);
 };
 
-std::ostream& operator<<(std::ostream& os, const Kernel *obj);
+using KernelFunction = std::function<void(const std::vector<Param *> *)>;
 
 
 template<typename T>
@@ -72,6 +44,7 @@ public:
 
   T get() const { return Value; }
   T get() { return Value; }
+  void set(T Val) { Value = Val; }
 
   std::string toString() const
   {
@@ -84,11 +57,11 @@ public:
 };
 
 template<std::size_t N, typename T>
-ParamImpl<T> *getNthParam(const std::vector<Param *> &V)
+ParamImpl<T> *getNthParam(const std::vector<Param *> *V)
 {
   std::size_t index = 0;
   ParamImpl<T> *ret;
-  for (Param *P : V) {
+  for (Param *P : *V) {
     if ((ret = dyn_cast<ParamImpl<T>>(P))) {
       if (index++ == N)
         return ret;
@@ -96,7 +69,5 @@ ParamImpl<T> *getNthParam(const std::vector<Param *> &V)
   }
   return nullptr;
 }
-
-
 
 #endif

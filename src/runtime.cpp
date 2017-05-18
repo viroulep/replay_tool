@@ -1,5 +1,4 @@
 #include "runtime.hpp"
-#include "custom_alloc.hpp"
 
 #include <chrono>
 #include <iostream>
@@ -8,6 +7,8 @@
 #include <pthread.h>
 
 using namespace std;
+
+std::map<std::string, KernelFunction> Runtime::kernels_;
 
 uint64_t inline getCycles() {
   uint64_t low, high;
@@ -126,7 +127,10 @@ void Runtime::work(int threadId) {
         w->before();
       //TODO repeat
       //TODO flush
-      e();
+      if (kernels_.find(task.kernelName) != kernels_.end())
+        kernels_[task.kernelName](task.kernelParams);
+      else
+        e();
       for (Watcher *w : thread.watchers_)
         w->after(task.name);
     }
