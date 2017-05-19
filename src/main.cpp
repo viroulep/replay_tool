@@ -105,8 +105,11 @@ int main(int argc, char **argv)
           int core = actionInfo["core"].as<int>();
           string kernelName = actionInfo["kernel"].as<string>();
           bool sync = false;
+          int repeat = 1;
           if (!actionInfo["sync"].IsNull())
             sync = actionInfo["sync"].as<bool>();
+          if (!actionInfo["repeat"].IsNull())
+            repeat = actionInfo["repeat"].as<int>();
           vector<Param *> *params = new vector<Param *>;
           paramsAllocated.insert(params);
 
@@ -122,7 +125,7 @@ int main(int argc, char **argv)
 
           if (Runtime::kernels_.find(kernelName) != Runtime::kernels_.end()) {
             // FIXME: That's ugly :(
-            runtime.run(core, Task(kernelName, params, sync, false, 1, kernelName));
+            runtime.run(core, Task(kernelName, params, sync, false, repeat, kernelName));
             ;
           } else {
             cout << "Can't find kernel " << kernelName << "\n";

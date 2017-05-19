@@ -63,7 +63,7 @@ class Watcher {
 };
 
 class CycleWatcher : public Watcher {
-  std::map<std::string, uint64_t> watchMap_;
+  std::map<std::string, std::vector<uint64_t>> watchMap_;
   uint64_t start_ = 0;
   uint64_t cyclesBefore_ = 0;
   public:
@@ -76,7 +76,7 @@ class TimeWatcher : public Watcher {
   using TimeClock = std::chrono::high_resolution_clock;
   using TimePoint = std::chrono::time_point<TimeClock>;
   using TimeDuration = std::chrono::duration<double>;
-  std::map<std::string, TimeDuration> watchMap_;
+  std::map<std::string, std::vector<TimeDuration>> watchMap_;
   uint64_t start_ = 0;
   TimePoint timeBefore_;
   public:
@@ -86,7 +86,7 @@ class TimeWatcher : public Watcher {
 };
 
 class SyncWatcher : public Watcher {
-  std::map<std::string, uint64_t> watchMap_;
+  std::map<std::string, std::vector<uint64_t>> watchMap_;
   uint64_t begin = 0;
   public:
     virtual void before();

@@ -32,7 +32,7 @@ void CycleWatcher::before()
 
 void CycleWatcher::after(const string &name)
 {
-  watchMap_.insert(make_pair(name, getCycles() - cyclesBefore_));
+  watchMap_[name].push_back(getCycles() - cyclesBefore_);
 }
 
 void TimeWatcher::before()
@@ -42,7 +42,7 @@ void TimeWatcher::before()
 
 void TimeWatcher::after(const string &name)
 {
-  watchMap_.insert(make_pair(name, TimeClock::now() - timeBefore_));
+  watchMap_[name].push_back(TimeClock::now() - timeBefore_);
 }
 
 void SyncWatcher::before()
@@ -60,7 +60,10 @@ string CycleWatcher::summarize() const
   stringstream ss;
   ss << "CycleWatcher (name: cycles)\n";
   for (auto &entry : watchMap_) {
-    ss << "  " << entry.first << ": " << entry.second << "\n";
+    ss << "  " << entry.first << ": [";
+    for (auto &instance : entry.second)
+      ss << instance << ", ";
+    ss << "]\n";
   }
   return ss.str();
 }
@@ -70,7 +73,10 @@ string TimeWatcher::summarize() const
   stringstream ss;
   ss << "TimeWatcher (name: seconds)\n";
   for (auto &entry : watchMap_) {
-    ss << "  " << entry.first << ": " << entry.second.count() << "\n";
+    ss << "  " << entry.first << ": [";
+    for (auto &instance : entry.second)
+      ss << instance.count() << ", ";
+    ss << "]\n";
   }
   return ss.str();
 }
@@ -80,7 +86,10 @@ string SyncWatcher::summarize() const
   stringstream ss;
   ss << "SyncWacther (name: begin)\n";
   for (auto &entry : watchMap_) {
-    ss << "  " << entry.first << ": " << entry.second << "\n";
+    ss << "  " << entry.first << ": [";
+    for (auto &instance : entry.second)
+      ss << instance << ", ";
+    ss << "]\n";
   }
   return ss.str();
 }
@@ -123,16 +132,17 @@ void Runtime::work(int threadId) {
         }
 #endif
       }
-      for (Watcher *w : thread.watchers_)
-        w->before();
-      //TODO repeat
-      //TODO flush
-      if (kernels_.find(task.kernelName) != kernels_.end())
-        kernels_[task.kernelName](task.kernelParams);
-      else
-        e();
-      for (Watcher *w : thread.watchers_)
-        w->after(task.name);
+      for (int i = 0; i < task.repeat; i++) {
+        for (Watcher *w : thread.watchers_)
+          w->before();
+        //TODO flush
+        if (kernels_.find(task.kernelName) != kernels_.end())
+          kernels_[task.kernelName](task.kernelParams);
+        else
+          e();
+        for (Watcher *w : thread.watchers_)
+          w->after(task.name);
+      }
     }
     //this_thread::sleep_for(chrono::seconds(1));
   }
