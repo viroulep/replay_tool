@@ -52,7 +52,7 @@ void SyncWatcher::before()
 
 void SyncWatcher::after(const string &name)
 {
-  watchMap_.insert(make_pair(name, begin));
+  watchMap_[name].push_back(begin);
 }
 
 string CycleWatcher::summarize() const
