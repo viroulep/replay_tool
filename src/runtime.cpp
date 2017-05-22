@@ -8,7 +8,8 @@
 
 using namespace std;
 
-std::map<std::string, KernelFunction> Runtime::kernels_;
+map<string, KernelFunction> Runtime::kernels_;
+set<string> Runtime::watchedKernels_;
 
 uint64_t inline getCycles() {
   uint64_t low, high;
@@ -58,9 +59,10 @@ void SyncWatcher::after(const string &name)
 string CycleWatcher::summarize() const
 {
   stringstream ss;
-  ss << "CycleWatcher (name: cycles)\n";
   for (auto &entry : watchMap_) {
-    ss << "  " << entry.first << ": [";
+    if (Runtime::watchedKernels_.count(entry.first) != 1)
+      continue;
+    ss << "  cycle-" << entry.first << "-" << threadId << ": [";
     for (auto &instance : entry.second)
       ss << instance << ", ";
     ss << "]\n";
@@ -71,9 +73,10 @@ string CycleWatcher::summarize() const
 string TimeWatcher::summarize() const
 {
   stringstream ss;
-  ss << "TimeWatcher (name: seconds)\n";
   for (auto &entry : watchMap_) {
-    ss << "  " << entry.first << ": [";
+    if (Runtime::watchedKernels_.count(entry.first) != 1)
+      continue;
+    ss << "  time-" << entry.first << "-" << threadId << ": [";
     for (auto &instance : entry.second)
       ss << instance.count() << ", ";
     ss << "]\n";
@@ -84,9 +87,10 @@ string TimeWatcher::summarize() const
 string DGEMMFlopsWatcher::summarize() const
 {
   stringstream ss;
-  ss << "DGEMMFlopsWatcher (name: GFlops)\n";
   for (auto &entry : watchMap_) {
-    ss << "  " << entry.first << ": [";
+    if (Runtime::watchedKernels_.count(entry.first) != 1)
+      continue;
+    ss << "  gflops-" << entry.first << "-" << threadId << ": [";
     for (auto &instance : entry.second)
       ss << (1e-9*FlopsDgemm)/instance.count() << ", ";
     ss << "]\n";
@@ -97,9 +101,10 @@ string DGEMMFlopsWatcher::summarize() const
 string SyncWatcher::summarize() const
 {
   stringstream ss;
-  ss << "SyncWacther (name: begin)\n";
   for (auto &entry : watchMap_) {
-    ss << "  " << entry.first << ": [";
+    if (Runtime::watchedKernels_.count(entry.first) != 1)
+      continue;
+    ss << "  sync-cycle-" << entry.first << "-" << threadId << ": [";
     for (auto &instance : entry.second)
       ss << instance << ", ";
     ss << "]\n";
@@ -189,11 +194,8 @@ void Runtime::run(int thread, Task &&code)
 
 void Runtime::watcherSummary(int id, const Thread &t)
 {
-  cout << "Watchers summary for thread " << id << "\n";
-  for (Watcher *w : t.watchers_) {
+  for (Watcher *w : t.watchers_)
     cout << w->summarize();
-  }
-  cout << "--------------\n";
 }
 
 void Runtime::done()

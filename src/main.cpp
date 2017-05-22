@@ -36,6 +36,7 @@ int main(int argc, char **argv)
   Runtime::kernels_.insert(make_pair("dgemm", kernel_dgemm));
   Runtime::kernels_.insert(make_pair("check_affinity", check_affinity));
   Runtime::kernels_.insert(make_pair("dummy", dummy));
+  Runtime::watchedKernels_.insert("dgemm");
 
   vector<Node> actions;
 
@@ -92,7 +93,7 @@ int main(int argc, char **argv)
   //runtime.addWatcher<CycleWatcher>();
   runtime.addWatcher<TimeWatcher>();
   runtime.addWatcher<DGEMMFlopsWatcher>();
-  runtime.addWatcher<SyncWatcher>();
+  //runtime.addWatcher<SyncWatcher>();
   // TODO: perfcounter watcher
 
   for (auto &a : actions) {
@@ -117,16 +118,18 @@ int main(int argc, char **argv)
             repeat = actionInfo["repeat"].as<int>();
           vector<Param *> *params = new vector<Param *>;
           paramsAllocated.insert(params);
-
-          cout << "-- Task creation: " << kernelName;
+          stringstream debugString;
+          debugString << "-- Task creation: " << kernelName;
           if (actionInfo["params"].IsSequence()) {
             for (string &paramName : actionInfo["params"].as<vector<string>>()) {
-              cout << ", " << paramName;
+              debugString << ", " << paramName;
               params->push_back(dataMap[paramName]);
             }
           }
-          cout << ", on core " << core;
-          cout << ", sync: " << sync << "\n";
+          debugString << ", on core " << core;
+          debugString << ", sync: " << sync << "\n";
+          if (0)
+            cout << debugString.str();
 
           if (Runtime::kernels_.find(kernelName) != Runtime::kernels_.end()) {
             // FIXME: That's ugly :(

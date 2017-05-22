@@ -53,7 +53,10 @@ class Task {
 };
 
 class Watcher {
+  protected:
+    const int threadId;
   public:
+    Watcher(int threadId) : threadId(threadId) {};
     virtual ~Watcher() {};
     virtual void before() = 0;
     virtual void after(const std::string &name) = 0;
@@ -65,6 +68,7 @@ class CycleWatcher : public Watcher {
   uint64_t start_ = 0;
   uint64_t cyclesBefore_ = 0;
   public:
+    CycleWatcher(int threadId) : Watcher(threadId) {};
     virtual void before();
     virtual void after(const std::string &name);
     virtual std::string summarize() const;
@@ -79,6 +83,7 @@ class TimeWatcher : public Watcher {
     uint64_t start_ = 0;
     TimePoint timeBefore_;
   public:
+    TimeWatcher(int threadId) : Watcher(threadId) {};
     virtual ~TimeWatcher() {};
     virtual void before();
     virtual void after(const std::string &name);
@@ -95,7 +100,7 @@ static double fadds_gemm(double m, double n, double k)
 class DGEMMFlopsWatcher : public TimeWatcher {
   public:
     const double FlopsDgemm;
-    DGEMMFlopsWatcher(int blockSize = 512) : FlopsDgemm(fmuls_gemm(blockSize, blockSize, blockSize) + fadds_gemm(blockSize, blockSize, blockSize)) {};
+    DGEMMFlopsWatcher(int threadId, int blockSize = 512) : TimeWatcher(threadId), FlopsDgemm(fmuls_gemm(blockSize, blockSize, blockSize) + fadds_gemm(blockSize, blockSize, blockSize)) {};
     virtual std::string summarize() const;
 };
 
@@ -103,6 +108,7 @@ class SyncWatcher : public Watcher {
   std::map<std::string, std::vector<uint64_t>> watchMap_;
   uint64_t begin = 0;
   public:
+    SyncWatcher(int threadId) : Watcher(threadId) {};
     virtual void before();
     virtual void after(const std::string &name);
     virtual std::string summarize() const;
@@ -138,7 +144,7 @@ class Runtime {
   void addWatcher()
   {
     for (auto &entry : threads) {
-      W *w = new W;
+      W *w = new W(entry.first);
       entry.second.watchers_.push_back(w);
     }
   }
@@ -152,6 +158,7 @@ class Runtime {
   static void watcherSummary(int id, const Thread &t);
 
   static std::map<std::string, KernelFunction> kernels_;
+  static std::set<std::string> watchedKernels_;
 };
 
 #endif

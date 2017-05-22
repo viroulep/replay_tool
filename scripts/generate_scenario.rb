@@ -40,7 +40,7 @@ NTHREADS = 192
             create_action(scenario, "init_blas_bloc", init_core, 1, false, name, "bs")
         end
 
-        create_action(scenario, "check_affinity", sid, 1, true)
+        #create_action(scenario, "check_affinity", sid, 1, true)
         create_action(scenario, "dgemm", sid, 20, true, "a#{sid}", "b#{sid}", "c#{sid}", "bs")
         if init_core > i
             create_action(scenario, "dummy", init_core, 1, true)
