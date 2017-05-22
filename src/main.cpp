@@ -21,6 +21,9 @@ hwloc_topology_t topo;
 using Node=YAML::Node;
 using NodeType=YAML::NodeType;
 
+void dummy(const vector<Param *> *)
+{}
+
 int main(int argc, char **argv)
 {
   hwloc_topology_init(&topo);
@@ -32,6 +35,7 @@ int main(int argc, char **argv)
   Runtime::kernels_.insert(make_pair("init_blas_bloc", init_blas_bloc));
   Runtime::kernels_.insert(make_pair("dgemm", kernel_dgemm));
   Runtime::kernels_.insert(make_pair("check_affinity", check_affinity));
+  Runtime::kernels_.insert(make_pair("dummy", dummy));
 
   vector<Node> actions;
 
@@ -85,9 +89,10 @@ int main(int argc, char **argv)
   }
 
   Runtime runtime(cores);
-  runtime.addWatcher<CycleWatcher>();
+  //runtime.addWatcher<CycleWatcher>();
   runtime.addWatcher<TimeWatcher>();
-  //runtime.addWatcher<SyncWatcher>();
+  runtime.addWatcher<DGEMMFlopsWatcher>();
+  runtime.addWatcher<SyncWatcher>();
   // TODO: perfcounter watcher
 
   for (auto &a : actions) {
@@ -95,7 +100,7 @@ int main(int argc, char **argv)
       case NodeType::Scalar:
         if (a.as<string>() == "sync") {
           for (int i : cores) {
-            runtime.run(i, Task(phony, true, false, 1, "sync"));
+            runtime.run(i, Task("dummy", nullptr, true, false, 1, "dummy"));
           }
         }
         break;
@@ -129,6 +134,7 @@ int main(int argc, char **argv)
             ;
           } else {
             cout << "Can't find kernel " << kernelName << "\n";
+            exit(EXIT_FAILURE);
           }
           break;
         }

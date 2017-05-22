@@ -81,6 +81,19 @@ string TimeWatcher::summarize() const
   return ss.str();
 }
 
+string DGEMMFlopsWatcher::summarize() const
+{
+  stringstream ss;
+  ss << "DGEMMFlopsWatcher (name: GFlops)\n";
+  for (auto &entry : watchMap_) {
+    ss << "  " << entry.first << ": [";
+    for (auto &instance : entry.second)
+      ss << (1e-9*FlopsDgemm)/instance.count() << ", ";
+    ss << "]\n";
+  }
+  return ss.str();
+}
+
 string SyncWatcher::summarize() const
 {
   stringstream ss;
@@ -95,6 +108,15 @@ string SyncWatcher::summarize() const
 }
 
 void Runtime::work(int threadId) {
+  //FIXME some check on boundaries
+  cpu_set_t cpuset;
+  CPU_ZERO(&cpuset);
+  CPU_SET(threadId, &cpuset);
+  int rc = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
+  if (rc != 0) {
+    cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
+  }
+
   Thread &thread = threads[threadId];
   auto &myQueue = thread.q;
   while (thread.go || !myQueue.empty()) {
@@ -103,7 +125,6 @@ void Runtime::work(int threadId) {
       Task &task = myQueue.front();
       myQueue.pop_front();
       guard.unlock();
-      const Executable &e = task.e;
       if (task.sync) {
         // This gives roughly <200 cycles between the start of two synchronous tasks
         int localCurrent = current.load(std::memory_order_acquire);
@@ -138,8 +159,10 @@ void Runtime::work(int threadId) {
         //TODO flush
         if (kernels_.find(task.kernelName) != kernels_.end())
           kernels_[task.kernelName](task.kernelParams);
-        else
-          e();
+        else {
+          cout << "Can't find the kernel " << task.kernelName << ", fatal error\n";
+          exit(EXIT_FAILURE);
+        }
         for (Watcher *w : thread.watchers_)
           w->after(task.name);
       }
@@ -191,21 +214,8 @@ void Runtime::done()
 
 void Runtime::initThreads(const set<int> &physIds)
 {
-  for (int cpuId : physIds) {
+  for (int cpuId : physIds)
     threads[cpuId].t = thread([this, cpuId] {work(cpuId);});
-    //FIXME some check on boundaries
-    cpu_set_t cpuset;
-    CPU_ZERO(&cpuset);
-    CPU_SET(cpuId, &cpuset);
-    // Not sure why, but it helps with some cases I had where
-    // the native_handle was null!
-    this_thread::sleep_for(chrono::milliseconds(200));
-    int rc = pthread_setaffinity_np(threads[cpuId].t.native_handle(),
-                                    sizeof(cpu_set_t), &cpuset);
-    if (rc != 0) {
-      cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
-    }
-  }
 }
 
 Runtime::Runtime(const set<int> &physIds) : max(physIds.size())

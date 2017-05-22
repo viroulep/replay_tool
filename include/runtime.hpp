@@ -42,7 +42,6 @@ public:
 
 class Task {
   public:
-    const Executable e;
     const std::string kernelName;
     const std::vector<Param *> *kernelParams;
     const bool sync;
@@ -50,8 +49,7 @@ class Task {
     const int repeat;
     const std::string name;
 
-    Task(Executable e, bool sync, bool flush, int repeat, const std::string &name) : e(std::move(e)), sync(sync), flush(flush), repeat(repeat), name(name) {};
-    Task(const std::string &kernelName, const std::vector<Param *> *kernelParams, bool sync, bool flush, int repeat, const std::string &name) : kernelName(kernelName), kernelParams(kernelParams), e([]{}), sync(sync), flush(flush), repeat(repeat), name(name) {};
+    Task(const std::string &kernelName, const std::vector<Param *> *kernelParams, bool sync, bool flush, int repeat, const std::string &name) : kernelName(kernelName), kernelParams(kernelParams), sync(sync), flush(flush), repeat(repeat), name(name) {};
 };
 
 class Watcher {
@@ -73,15 +71,31 @@ class CycleWatcher : public Watcher {
 };
 
 class TimeWatcher : public Watcher {
-  using TimeClock = std::chrono::high_resolution_clock;
-  using TimePoint = std::chrono::time_point<TimeClock>;
-  using TimeDuration = std::chrono::duration<double>;
-  std::map<std::string, std::vector<TimeDuration>> watchMap_;
-  uint64_t start_ = 0;
-  TimePoint timeBefore_;
+  protected:
+    using TimeClock = std::chrono::high_resolution_clock;
+    using TimePoint = std::chrono::time_point<TimeClock>;
+    using TimeDuration = std::chrono::duration<double>;
+    std::map<std::string, std::vector<TimeDuration>> watchMap_;
+    uint64_t start_ = 0;
+    TimePoint timeBefore_;
   public:
+    virtual ~TimeWatcher() {};
     virtual void before();
     virtual void after(const std::string &name);
+    virtual std::string summarize() const;
+};
+
+// See LAWN 41
+static double fmuls_gemm(double m, double n, double k)
+{ return m*n*k; }
+
+static double fadds_gemm(double m, double n, double k)
+{ return m*n*k; }
+
+class DGEMMFlopsWatcher : public TimeWatcher {
+  public:
+    const double FlopsDgemm;
+    DGEMMFlopsWatcher(int blockSize = 512) : FlopsDgemm(fmuls_gemm(blockSize, blockSize, blockSize) + fadds_gemm(blockSize, blockSize, blockSize)) {};
     virtual std::string summarize() const;
 };
 

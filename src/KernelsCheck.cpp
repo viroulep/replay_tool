@@ -21,7 +21,7 @@ static unsigned int kaapi_numa_getpage_id(const void* addr)
 
 void check_affinity(const vector<Param *> *)
 {
-  int size = 4096*8;
+  int size = 512*512*8;
   hwloc_nodeset_t aff = hwloc_bitmap_alloc();
   hwloc_bitmap_fill(aff);
   double *array = (double*)hwloc_alloc_membind(topo, size, aff, HWLOC_MEMBIND_FIRSTTOUCH, 0);
