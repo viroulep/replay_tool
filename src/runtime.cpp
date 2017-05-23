@@ -77,7 +77,7 @@ string TimeWatcher::summarize() const
     if (Runtime::watchedKernels_.count(entry.first) != 1)
       continue;
     for (auto &instance : entry.second)
-      ss << entry.first << " time-ms " << threadId << " " << instance.count() << "\n";
+      ss << name << " " << entry.first << " time-ms " << threadId << " " << instance.count() << "\n";
   }
   return ss.str();
 }
@@ -89,7 +89,7 @@ string DGEMMFlopsWatcher::summarize() const
     if (Runtime::watchedKernels_.count(entry.first) != 1)
       continue;
     for (auto &instance : entry.second)
-      ss << entry.first << " gflops " << threadId << " " << (1e-9*FlopsDgemm)/instance.count() << "\n";
+      ss << name << " " << entry.first << " gflops " << threadId << " " << (1e-9*FlopsDgemm)/instance.count() << "\n";
   }
   return ss.str();
 }
@@ -100,7 +100,7 @@ string SyncWatcher::summarize() const
   for (auto &entry : watchMap_) {
     if (Runtime::watchedKernels_.count(entry.first) != 1)
       continue;
-    ss << "  sync-cycle-" << entry.first << "-" << threadId << ": [";
+    ss << name << " " << "  sync-cycle-" << entry.first << "-" << threadId << ": [";
     for (auto &instance : entry.second)
       ss << instance << ", ";
     ss << "]\n";

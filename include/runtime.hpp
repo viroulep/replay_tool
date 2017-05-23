@@ -55,8 +55,9 @@ class Task {
 class Watcher {
   protected:
     const int threadId;
+    const std::string name;
   public:
-    Watcher(int threadId) : threadId(threadId) {};
+    Watcher(int threadId, const std::string &name) : threadId(threadId), name(name) {};
     virtual ~Watcher() {};
     virtual void before() = 0;
     virtual void after(const std::string &name) = 0;
@@ -68,7 +69,7 @@ class CycleWatcher : public Watcher {
   uint64_t start_ = 0;
   uint64_t cyclesBefore_ = 0;
   public:
-    CycleWatcher(int threadId) : Watcher(threadId) {};
+    CycleWatcher(int threadId, const std::string &name) : Watcher(threadId, name) {};
     virtual void before();
     virtual void after(const std::string &name);
     virtual std::string summarize() const;
@@ -83,7 +84,7 @@ class TimeWatcher : public Watcher {
     uint64_t start_ = 0;
     TimePoint timeBefore_;
   public:
-    TimeWatcher(int threadId) : Watcher(threadId) {};
+    TimeWatcher(int threadId, const std::string &name) : Watcher(threadId, name) {};
     virtual ~TimeWatcher() {};
     virtual void before();
     virtual void after(const std::string &name);
@@ -100,7 +101,7 @@ static double fadds_gemm(double m, double n, double k)
 class DGEMMFlopsWatcher : public TimeWatcher {
   public:
     const double FlopsDgemm;
-    DGEMMFlopsWatcher(int threadId, int blockSize = 512) : TimeWatcher(threadId), FlopsDgemm(fmuls_gemm(blockSize, blockSize, blockSize) + fadds_gemm(blockSize, blockSize, blockSize)) {};
+    DGEMMFlopsWatcher(int threadId, const std::string &name, int blockSize = 512) : TimeWatcher(threadId, name), FlopsDgemm(fmuls_gemm(blockSize, blockSize, blockSize) + fadds_gemm(blockSize, blockSize, blockSize)) {};
     virtual std::string summarize() const;
 };
 
@@ -108,7 +109,7 @@ class SyncWatcher : public Watcher {
   std::map<std::string, std::vector<uint64_t>> watchMap_;
   uint64_t begin = 0;
   public:
-    SyncWatcher(int threadId) : Watcher(threadId) {};
+    SyncWatcher(int threadId, const std::string &name) : Watcher(threadId, name) {};
     virtual void before();
     virtual void after(const std::string &name);
     virtual std::string summarize() const;
@@ -141,10 +142,10 @@ class Runtime {
   Runtime(const std::set<int> &physIds);
 
   template<typename W>
-  void addWatcher()
+  void addWatcher(const std::string &name)
   {
     for (auto &entry : threads) {
-      W *w = new W(entry.first);
+      W *w = new W(entry.first, name);
       entry.second.watchers_.push_back(w);
     }
   }

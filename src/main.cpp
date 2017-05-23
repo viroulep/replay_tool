@@ -39,6 +39,7 @@ int main(int argc, char **argv)
   Runtime::watchedKernels_.insert("dgemm");
 
   vector<Node> actions;
+  string name = "unknown";
 
   if (argc > 1) {
     // Get variables
@@ -53,6 +54,8 @@ int main(int argc, char **argv)
       //cout << var.first << ": " << var.second->toString() << "\n";
     //}
     actions = config["scenarii"]["actions"].as<vector<Node>>();
+    if (config["scenarii"]["name"].IsDefined())
+      name = config["scenarii"]["name"].as<string>();
 
     /*
     auto kernels = config["scenarii"]["actions"].as<map<string, Node>>();
@@ -77,9 +80,6 @@ int main(int argc, char **argv)
   }
 
   //cout << "Actions: \n";
-  Executable phony = [] {
-    ;
-  };
 
   set<int> cores;
   // TODO: repeat the following for all "params" in the scenario!
@@ -92,7 +92,7 @@ int main(int argc, char **argv)
   Runtime runtime(cores);
   //runtime.addWatcher<CycleWatcher>();
   //runtime.addWatcher<TimeWatcher>();
-  runtime.addWatcher<DGEMMFlopsWatcher>();
+  runtime.addWatcher<DGEMMFlopsWatcher>(name);
   //runtime.addWatcher<SyncWatcher>();
   // TODO: perfcounter watcher
 
@@ -112,9 +112,9 @@ int main(int argc, char **argv)
           string kernelName = actionInfo["kernel"].as<string>();
           bool sync = false;
           int repeat = 1;
-          if (!actionInfo["sync"].IsNull())
+          if (actionInfo["sync"].IsDefined())
             sync = actionInfo["sync"].as<bool>();
-          if (!actionInfo["repeat"].IsNull())
+          if (actionInfo["repeat"].IsDefined())
             repeat = actionInfo["repeat"].as<int>();
           vector<Param *> *params = new vector<Param *>;
           paramsAllocated.insert(params);
@@ -127,6 +127,7 @@ int main(int argc, char **argv)
             }
           }
           debugString << ", on core " << core;
+          debugString << ", repeat: " << repeat;
           debugString << ", sync: " << sync << "\n";
           if (0)
             cout << debugString.str();
