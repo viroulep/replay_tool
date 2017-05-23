@@ -49,9 +49,9 @@ int main(int argc, char **argv)
     for (auto &var : data) {
       dataMap[var.first] = Param::createParam(var.second["type"].as<string>(), var.second["value"]);
     }
-    for (auto &var : dataMap) {
-      cout << var.first << ": " << var.second->toString() << "\n";
-    }
+    //for (auto &var : dataMap) {
+      //cout << var.first << ": " << var.second->toString() << "\n";
+    //}
     actions = config["scenarii"]["actions"].as<vector<Node>>();
 
     /*
@@ -76,7 +76,7 @@ int main(int argc, char **argv)
     */
   }
 
-  cout << "Actions: \n";
+  //cout << "Actions: \n";
   Executable phony = [] {
     ;
   };
@@ -91,7 +91,7 @@ int main(int argc, char **argv)
 
   Runtime runtime(cores);
   //runtime.addWatcher<CycleWatcher>();
-  runtime.addWatcher<TimeWatcher>();
+  //runtime.addWatcher<TimeWatcher>();
   runtime.addWatcher<DGEMMFlopsWatcher>();
   //runtime.addWatcher<SyncWatcher>();
   // TODO: perfcounter watcher

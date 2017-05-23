@@ -30,7 +30,7 @@ NTHREADS = 192
 
 (first..last).each do |i|
     current_scenario = { "scenarii" => { "params" => {}, "data" => {}, "actions" => [] } }
-    current_scenario["name"] = "_#{i}"
+    current_scenario["name"] = "_#{i+1}"
     scenario = current_scenario["scenarii"]
     (0..i).each do |sid|
         create_data(scenario, "bs", "int", 512)
@@ -41,7 +41,7 @@ NTHREADS = 192
         end
 
         #create_action(scenario, "check_affinity", sid, 1, true)
-        create_action(scenario, "dgemm", sid, 20, true, "a#{sid}", "b#{sid}", "c#{sid}", "bs")
+        create_action(scenario, "dgemm", sid, 50, true, "a#{sid}", "b#{sid}", "c#{sid}", "bs")
         if init_core > i
             create_action(scenario, "dummy", init_core, 1, true)
         end
