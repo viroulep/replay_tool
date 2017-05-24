@@ -31,8 +31,9 @@ remote_access = remote_access.to_s == "true"
     create_data(scenario, "bs", "int", 512)
     (0..23).each do |node_first_core|
         (0..i).each do |sid|
-            init_core = remote_access ? (((node_first_core+1)*8)%192 + sid) : (node_first_core * 8 + sid)
-            ["a#{init_core}", "b#{init_core}", "c#{init_core}"].each do |name|
+            thread_id = node_first_core * 8 + sid
+            init_core = remote_access ? (thread_id+8)%192 : thread_id
+            ["a#{thread_id}", "b#{thread_id}", "c#{thread_id}"].each do |name|
                 create_data(scenario, name, "double*")
                 create_action(scenario, "init_blas_bloc", init_core, 1, false, name, "bs")
             end
@@ -41,8 +42,8 @@ remote_access = remote_access.to_s == "true"
 
     (0..23).each do |node_first_core|
         (0..i).each do |sid|
-            init_core = node_first_core * 8 + sid
-            create_action(scenario, "dgemm", init_core, 50, true, "a#{init_core}", "b#{init_core}", "c#{init_core}", "bs")
+            thread_id = node_first_core * 8 + sid
+            create_action(scenario, "dgemm", thread_id, 50, true, "a#{thread_id}", "b#{thread_id}", "c#{thread_id}", "bs")
             #if init_core > i
                 #create_action(scenario, "dummy", init_core, 1, true)
             #end
