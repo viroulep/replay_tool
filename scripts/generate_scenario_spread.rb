@@ -18,21 +18,22 @@ def sync(scenario)
     scenario["actions"] << "sync"
 end
 
-NTHREADS = 192
+NTHREADS = 96
+CORES_PER_NODE = 12
 base_filename = ARGV[0] || "scenario"
 remote_access = ARGV[1] || "false"
 remote_access = remote_access.to_s == "true"
 
-(0..7).each do |i|
+(0..11).each do |i|
     current_scenario = { "scenarii" => { "params" => {}, "data" => {}, "actions" => [] } }
     #i+1 is the number of threads per node used
     scenario = current_scenario["scenarii"]
     scenario["name"] = "#{base_filename}_spread #{i+1}"
     create_data(scenario, "bs", "int", 512)
-    (0..23).each do |node_first_core|
+    (0..3).each do |node_first_core|
         (0..i).each do |sid|
-            thread_id = node_first_core * 8 + sid
-            init_core = remote_access ? (thread_id+8)%192 : thread_id
+            thread_id = node_first_core * CORES_PER_NODE + sid
+            init_core = remote_access ? (thread_id+CORES_PER_NODE)%48 : thread_id
             ["a#{thread_id}", "b#{thread_id}", "c#{thread_id}"].each do |name|
                 create_data(scenario, name, "double*")
                 create_action(scenario, "init_blas_bloc", init_core, 1, false, name, "bs")
@@ -40,9 +41,9 @@ remote_access = remote_access.to_s == "true"
         end
     end
 
-    (0..23).each do |node_first_core|
+    (0..3).each do |node_first_core|
         (0..i).each do |sid|
-            thread_id = node_first_core * 8 + sid
+            thread_id = node_first_core * CORES_PER_NODE + sid
             create_action(scenario, "dgemm", thread_id, 50, true, "a#{thread_id}", "b#{thread_id}", "c#{thread_id}", "bs")
             #if init_core > i
                 #create_action(scenario, "dummy", init_core, 1, true)

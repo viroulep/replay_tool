@@ -199,6 +199,8 @@ else()
       message(STATUS
         "Found hwloc ${Hwloc_VERSION} in ${Hwloc_INCLUDE_DIRS}:${Hwloc_LIBRARIES}")
     endif()
+  else()
+    message(FATAL_ERROR "Could not find hwloc with pkg config")
   endif()
 
   endif() # cross-compile else

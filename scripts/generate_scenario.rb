@@ -28,15 +28,16 @@ if last - first < 0 || first < 0
     raise "Can't generate less than 1 scenario"
 end
 
-NTHREADS = 192
+NTHREADS = 96
+CORES_PER_NODE = 12
 
 (first..last).each do |i|
     current_scenario = { "scenarii" => { "params" => {}, "data" => {}, "actions" => [] } }
     scenario = current_scenario["scenarii"]
     scenario["name"] = "#{base_filename} #{i+1}"
     (0..i).each do |sid|
-        create_data(scenario, "bs", "int", 512)
-        init_core = remote_access ? (sid+8)%NTHREADS : sid
+        create_data(scenario, "bs", "int", 256)
+        init_core = remote_access ? (sid+CORES_PER_NODE)%NTHREADS : sid
         ["a#{sid}", "b#{sid}", "c#{sid}"].each do |name|
             create_data(scenario, name, "double*")
             create_action(scenario, "init_blas_bloc", init_core, 1, false, name, "bs")
@@ -45,7 +46,7 @@ NTHREADS = 192
 
     # If we're doing init by shifting cores, we need to spawn all compute kernels afterwards
     (0..i).each do |sid|
-        init_core = remote_access ? (sid+8)%NTHREADS : sid
+        init_core = remote_access ? (sid+CORES_PER_NODE)%NTHREADS : sid
         #create_action(scenario, "check_affinity", sid, 1, true)
         create_action(scenario, "dgemm", sid, 50, true, "a#{sid}", "b#{sid}", "c#{sid}", "bs")
         if init_core > i
