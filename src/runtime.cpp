@@ -11,6 +11,10 @@ using namespace std;
 map<string, KernelFunction> Runtime::kernels_;
 set<string> Runtime::watchedKernels_;
 
+void dummy(const vector<Param *> *)
+{}
+
+
 uint64_t inline getCycles() {
   uint64_t low, high;
   asm volatile("rdtsc" : "=a" (low), "=d" (high));
@@ -116,6 +120,10 @@ void Runtime::work(int threadId) {
   int rc = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
   if (rc != 0) {
     cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
+    cerr << "With thread id " << threadId << "\n";
+    cerr << EFAULT << "\n";
+    cerr << EINVAL << "\n";
+    cerr << ESRCH << "\n";
   }
 
   Thread &thread = threads[threadId];
@@ -212,6 +220,11 @@ void Runtime::done()
 
 void Runtime::initThreads(const set<int> &physIds)
 {
+  Runtime::kernels_.insert(make_pair("dummy", dummy));
+  for (int cpuId : physIds) {
+    Thread &t = threads[cpuId];
+    t.q.push_back(Task("dummy", nullptr, true, false, 1, "start_sync"));
+  }
   for (int cpuId : physIds)
     threads[cpuId].t = thread([this, cpuId] {work(cpuId);});
 }

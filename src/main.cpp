@@ -21,9 +21,6 @@ hwloc_topology_t topo;
 using Node=YAML::Node;
 using NodeType=YAML::NodeType;
 
-void dummy(const vector<Param *> *)
-{}
-
 int main(int argc, char **argv)
 {
   hwloc_topology_init(&topo);
@@ -35,8 +32,9 @@ int main(int argc, char **argv)
   Runtime::kernels_.insert(make_pair("init_blas_bloc", init_blas_bloc));
   Runtime::kernels_.insert(make_pair("dgemm", kernel_dgemm));
   Runtime::kernels_.insert(make_pair("check_affinity", check_affinity));
-  Runtime::kernels_.insert(make_pair("dummy", dummy));
   Runtime::watchedKernels_.insert("dgemm");
+  // FIXME: obviously to specific...
+  int blockSize = 512;
 
   vector<Node> actions;
   string name = "unknown";
@@ -45,6 +43,7 @@ int main(int argc, char **argv)
     // Get variables
     // Get parameters
     // Get actions
+    // Get watchers
     Node config = YAML::LoadFile(argv[1]);
     auto data = config["scenarii"]["data"].as<map<string, Node>>();
     for (auto &var : data) {
@@ -89,10 +88,14 @@ int main(int argc, char **argv)
     }
   }
 
+  if (dataMap.count("bs") > 0)
+    // yepyepyep, could be a segfault if the user is not aware
+    blockSize = dyn_cast_or_null<ParamImpl<int>>(dataMap["bs"])->get();
+
   Runtime runtime(cores);
   //runtime.addWatcher<CycleWatcher>();
   //runtime.addWatcher<TimeWatcher>();
-  runtime.addWatcher<DGEMMFlopsWatcher>(name);
+  runtime.addWatcher<DGEMMFlopsWatcher>(name, blockSize);
   //runtime.addWatcher<SyncWatcher>();
   // TODO: perfcounter watcher
 

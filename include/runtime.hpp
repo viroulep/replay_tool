@@ -101,7 +101,7 @@ static double fadds_gemm(double m, double n, double k)
 class DGEMMFlopsWatcher : public TimeWatcher {
   public:
     const double FlopsDgemm;
-    DGEMMFlopsWatcher(int threadId, const std::string &name, int blockSize = 512) : TimeWatcher(threadId, name), FlopsDgemm(fmuls_gemm(blockSize, blockSize, blockSize) + fadds_gemm(blockSize, blockSize, blockSize)) {};
+    DGEMMFlopsWatcher(int threadId, const std::string &name, int blockSize) : TimeWatcher(threadId, name), FlopsDgemm(fmuls_gemm(blockSize, blockSize, blockSize) + fadds_gemm(blockSize, blockSize, blockSize)) {};
     virtual std::string summarize() const;
 };
 
@@ -141,11 +141,11 @@ class Runtime {
 
   Runtime(const std::set<int> &physIds);
 
-  template<typename W>
-  void addWatcher(const std::string &name)
+  template<typename W, typename... Args>
+  void addWatcher(const std::string &name, Args... args)
   {
     for (auto &entry : threads) {
-      W *w = new W(entry.first, name);
+      W *w = new W(entry.first, name, args...);
       entry.second.watchers_.push_back(w);
     }
   }
