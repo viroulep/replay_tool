@@ -52,3 +52,15 @@ void kernel_dtrsm(const std::vector<Param *> *VP)
   cblas_dtrsm(CblasRowMajor, CblasLeft, CblasUpper, CblasNoTrans, CblasNonUnit, tileSize, tileSize, 1,
               a, tileSize, b, tileSize);
 }
+
+void kernel_dsyrk(const std::vector<Param *> *VP)
+{
+  ParamImpl<double *> *aParam = getNthParam<0, double *>(VP);
+  ParamImpl<double *> *cParam = getNthParam<1, double *>(VP);
+  ParamImpl<int> *tileSizeParam = getNthParam<0, int>(VP);
+  assert(aParam && cParam && tileSizeParam && "One of the expected params to DTRSM is null!");
+  double *a = aParam->get(), *c = cParam->get();
+  int tileSize = tileSizeParam->get();
+  cblas_dsyrk(CblasRowMajor, CblasUpper, CblasNoTrans, tileSize, tileSize, 1,
+              a, tileSize, 1, c, tileSize);
+}

@@ -98,6 +98,18 @@ string DGEMMFlopsWatcher::summarize() const
   return ss.str();
 }
 
+string DSYRKFlopsWatcher::summarize() const
+{
+  stringstream ss;
+  for (auto &entry : watchMap_) {
+    if (Runtime::watchedKernels_.count(entry.first) != 1 || entry.first != "dsyrk")
+      continue;
+    for (auto &instance : entry.second)
+      ss << name << " " << entry.first << " gflops " << threadId << " " << (1e-9*FlopsDsyrk)/instance.count() << "\n";
+  }
+  return ss.str();
+}
+
 string DTRSMFlopsWatcher::summarize() const
 {
   stringstream ss;

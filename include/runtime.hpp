@@ -98,6 +98,12 @@ static double fmuls_gemm(double m, double n, double k)
 static double fadds_gemm(double m, double n, double k)
 { return m*n*k; }
 
+static double fmuls_syrk(double k, double n)
+{ return 0.5 * k * n * (n+1); }
+
+static double fadds_syrk(double k, double n)
+{ return 0.5 * k * n * (n+1); }
+
 static double fmuls_trsm(double m, double n)
 { return 0.5 * (n) * (m) * ((m)+1); }
 
@@ -115,6 +121,13 @@ class DTRSMFlopsWatcher : public TimeWatcher {
   public:
     const double FlopsDtrsm;
     DTRSMFlopsWatcher(int threadId, const std::string &name, int blockSize) : TimeWatcher(threadId, name), FlopsDtrsm(fmuls_trsm(blockSize, blockSize) + fadds_trsm(blockSize, blockSize)) {};
+    virtual std::string summarize() const;
+};
+
+class DSYRKFlopsWatcher : public TimeWatcher {
+  public:
+    const double FlopsDsyrk;
+    DSYRKFlopsWatcher(int threadId, const std::string &name, int blockSize) : TimeWatcher(threadId, name), FlopsDsyrk(fmuls_syrk(blockSize, blockSize) + fadds_syrk(blockSize, blockSize)) {};
     virtual std::string summarize() const;
 };
 

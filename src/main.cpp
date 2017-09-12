@@ -32,9 +32,11 @@ int main(int argc, char **argv)
   Runtime::kernels_.insert(make_pair("init_blas_bloc", init_blas_bloc));
   Runtime::kernels_.insert(make_pair("dgemm", kernel_dgemm));
   Runtime::kernels_.insert(make_pair("dtrsm", kernel_dtrsm));
+  Runtime::kernels_.insert(make_pair("dsyrk", kernel_dsyrk));
   Runtime::kernels_.insert(make_pair("check_affinity", check_affinity));
   Runtime::watchedKernels_.insert("dgemm");
   Runtime::watchedKernels_.insert("dtrsm");
+  Runtime::watchedKernels_.insert("dsyrk");
   // FIXME: obviously to specific...
   int blockSize = 512;
 
@@ -99,6 +101,7 @@ int main(int argc, char **argv)
   //runtime.addWatcher<TimeWatcher>(name);
   runtime.addWatcher<DGEMMFlopsWatcher>(name, blockSize);
   runtime.addWatcher<DTRSMFlopsWatcher>(name, blockSize);
+  runtime.addWatcher<DSYRKFlopsWatcher>(name, blockSize);
   //runtime.addWatcher<SyncWatcher>();
   // TODO: perfcounter watcher
 
