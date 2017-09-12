@@ -29,29 +29,37 @@ if last - first < 0 || first < 0
 end
 
 NTHREADS = 96
-CORES_PER_NODE = 12
+CORES_PER_NODE = 24
 
 (first..last).each do |i|
     current_scenario = { "scenarii" => { "params" => {}, "data" => {}, "actions" => [] } }
     scenario = current_scenario["scenarii"]
     scenario["name"] = "#{base_filename} #{i+1}"
+    create_data(scenario, "bs", "int", 256)
+    init_core_used = []
     (0..i).each do |sid|
-        create_data(scenario, "bs", "int", 256)
-        init_core = remote_access ? (sid+CORES_PER_NODE)%NTHREADS : sid
-        ["a#{sid}", "b#{sid}", "c#{sid}"].each do |name|
+        actual_core = (sid*4)%NTHREADS + sid/24
+        init_core = remote_access ? (actual_core+1)%NTHREADS : actual_core
+        init_core_used << init_core
+        ["a#{actual_core}", "b#{actual_core}", "c#{actual_core}"].each do |name|
             create_data(scenario, name, "double*")
             create_action(scenario, "init_blas_bloc", init_core, 1, false, name, "bs")
         end
     end
+    init_core_used.uniq!
+
+    compute_core_used = []
 
     # If we're doing init by shifting cores, we need to spawn all compute kernels afterwards
     (0..i).each do |sid|
-        init_core = remote_access ? (sid+CORES_PER_NODE)%NTHREADS : sid
+        actual_core = (sid*4)%NTHREADS + sid/24
+        compute_core_used << actual_core
         #create_action(scenario, "check_affinity", sid, 1, true)
-        create_action(scenario, "dgemm", sid, 50, true, "a#{sid}", "b#{sid}", "c#{sid}", "bs")
-        if init_core > i
-            create_action(scenario, "dummy", init_core, 1, true)
-        end
+        create_action(scenario, "dgemm", actual_core, 50, true, "a#{actual_core}", "b#{actual_core}", "c#{actual_core}", "bs")
+    end
+    compute_core_used.uniq!
+    (init_core_used-compute_core_used).each do |c|
+        create_action(scenario, "dummy", c, 1, true)
     end
     File.open(scenario["name"].tr(' ', '_') + ".yml", 'w') do |file|
         file.write(current_scenario.to_yaml)

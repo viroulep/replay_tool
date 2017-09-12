@@ -18,24 +18,30 @@ def sync(scenario)
     scenario["actions"] << "sync"
 end
 
-NTHREADS = 96
-base_filename = ARGV[0] || "scenario"
-remote_access = ARGV[1] || "false"
+first = ARGV[0].to_i || 0
+last = ARGV[1].to_i || 0
+base_filename = ARGV[2] || "scenario"
+remote_access = ARGV[3] || "false"
 remote_access = remote_access.to_s == "true"
+puts "Remote access: #{remote_access}"
+if last - first < 0 || first < 0
+    raise "Can't generate less than 1 scenario"
+end
 
-(0..23).each do |i|
+NTHREADS = 96
+CORES_PER_NODE = 24
+
+(first..last).each do |i|
     current_scenario = { "scenarii" => { "params" => {}, "data" => {}, "actions" => [] } }
-    #i+1 is the number of threads per node used
     scenario = current_scenario["scenarii"]
-    scenario["name"] = "#{base_filename}_spread #{i+1}"
-    create_data(scenario, "bs", "int", 256)
-    last = (i+1)*4-1
-
+    scenario["name"] = "#{base_filename} #{i+1}"
+    create_data(scenario, "bs", "int", 512)
     init_core_used = []
-    (0..last).each do |sid|
-        init_core = remote_access ? (sid+1)%96 : sid
+    (0..i).each do |sid|
+        actual_core = (sid*4)%NTHREADS + sid/24
+        init_core = remote_access ? (actual_core+1)%NTHREADS : actual_core
         init_core_used << init_core
-        ["a#{sid}", "b#{sid}", "c#{sid}"].each do |name|
+        ["a#{actual_core}", "b#{actual_core}"].each do |name|
             create_data(scenario, name, "double*")
             create_action(scenario, "init_blas_bloc", init_core, 1, false, name, "bs")
         end
@@ -44,9 +50,12 @@ remote_access = remote_access.to_s == "true"
 
     compute_core_used = []
 
-    (0..last).each do |sid|
-        compute_core_used << sid
-        create_action(scenario, "dgemm", sid, 50, true, "a#{sid}", "b#{sid}", "c#{sid}", "bs")
+    # If we're doing init by shifting cores, we need to spawn all compute kernels afterwards
+    (0..i).each do |sid|
+        actual_core = (sid*4)%NTHREADS + sid/24
+        compute_core_used << actual_core
+        #create_action(scenario, "check_affinity", sid, 1, true)
+        create_action(scenario, "dtrsm", actual_core, 50, true, "a#{actual_core}", "b#{actual_core}", "bs")
     end
     compute_core_used.uniq!
     (init_core_used-compute_core_used).each do |c|
