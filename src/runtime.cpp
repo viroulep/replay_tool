@@ -90,10 +90,22 @@ string DGEMMFlopsWatcher::summarize() const
 {
   stringstream ss;
   for (auto &entry : watchMap_) {
-    if (Runtime::watchedKernels_.count(entry.first) != 1)
+    if (Runtime::watchedKernels_.count(entry.first) != 1 || entry.first != "dgemm")
       continue;
     for (auto &instance : entry.second)
       ss << name << " " << entry.first << " gflops " << threadId << " " << (1e-9*FlopsDgemm)/instance.count() << "\n";
+  }
+  return ss.str();
+}
+
+string DTRSMFlopsWatcher::summarize() const
+{
+  stringstream ss;
+  for (auto &entry : watchMap_) {
+    if (Runtime::watchedKernels_.count(entry.first) != 1 || entry.first != "dtrsm")
+      continue;
+    for (auto &instance : entry.second)
+      ss << name << " " << entry.first << " gflops " << threadId << " " << (1e-9*FlopsDtrsm)/instance.count() << "\n";
   }
   return ss.str();
 }

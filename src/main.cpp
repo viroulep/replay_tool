@@ -31,8 +31,10 @@ int main(int argc, char **argv)
   set<vector<Param *> *> paramsAllocated;
   Runtime::kernels_.insert(make_pair("init_blas_bloc", init_blas_bloc));
   Runtime::kernels_.insert(make_pair("dgemm", kernel_dgemm));
+  Runtime::kernels_.insert(make_pair("dtrsm", kernel_dtrsm));
   Runtime::kernels_.insert(make_pair("check_affinity", check_affinity));
   Runtime::watchedKernels_.insert("dgemm");
+  Runtime::watchedKernels_.insert("dtrsm");
   // FIXME: obviously to specific...
   int blockSize = 512;
 
@@ -94,8 +96,9 @@ int main(int argc, char **argv)
 
   Runtime runtime(cores);
   //runtime.addWatcher<CycleWatcher>();
-  //runtime.addWatcher<TimeWatcher>();
+  //runtime.addWatcher<TimeWatcher>(name);
   runtime.addWatcher<DGEMMFlopsWatcher>(name, blockSize);
+  runtime.addWatcher<DTRSMFlopsWatcher>(name, blockSize);
   //runtime.addWatcher<SyncWatcher>();
   // TODO: perfcounter watcher
 

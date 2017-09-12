@@ -40,3 +40,15 @@ void kernel_dgemm(const std::vector<Param *> *VP)
   cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, tileSize, tileSize, tileSize, 1,
               a, tileSize, b, tileSize, 1, c, tileSize);
 }
+
+void kernel_dtrsm(const std::vector<Param *> *VP)
+{
+  ParamImpl<double *> *aParam = getNthParam<0, double *>(VP);
+  ParamImpl<double *> *bParam = getNthParam<1, double *>(VP);
+  ParamImpl<int> *tileSizeParam = getNthParam<0, int>(VP);
+  assert(aParam && bParam && tileSizeParam && "One of the expected params to DTRSM is null!");
+  double *a = aParam->get(), *b = bParam->get();
+  int tileSize = tileSizeParam->get();
+  cblas_dtrsm(CblasRowMajor, CblasLeft, CblasUpper, CblasNoTrans, CblasNonUnit, tileSize, tileSize, 1,
+              a, tileSize, b, tileSize);
+}

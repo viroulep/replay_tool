@@ -98,10 +98,23 @@ static double fmuls_gemm(double m, double n, double k)
 static double fadds_gemm(double m, double n, double k)
 { return m*n*k; }
 
+static double fmuls_trsm(double m, double n)
+{ return 0.5 * (n) * (m) * ((m)+1); }
+
+static double fadds_trsm(double m, double n)
+{ return 0.5 * (n) * (m) * ((m)-1); }
+
 class DGEMMFlopsWatcher : public TimeWatcher {
   public:
     const double FlopsDgemm;
     DGEMMFlopsWatcher(int threadId, const std::string &name, int blockSize) : TimeWatcher(threadId, name), FlopsDgemm(fmuls_gemm(blockSize, blockSize, blockSize) + fadds_gemm(blockSize, blockSize, blockSize)) {};
+    virtual std::string summarize() const;
+};
+
+class DTRSMFlopsWatcher : public TimeWatcher {
+  public:
+    const double FlopsDtrsm;
+    DTRSMFlopsWatcher(int threadId, const std::string &name, int blockSize) : TimeWatcher(threadId, name), FlopsDtrsm(fmuls_trsm(blockSize, blockSize) + fadds_trsm(blockSize, blockSize)) {};
     virtual std::string summarize() const;
 };
 
