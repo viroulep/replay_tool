@@ -98,7 +98,7 @@ int main(int argc, char **argv)
 
   Runtime runtime(cores);
   //runtime.addWatcher<CycleWatcher>();
-  //runtime.addWatcher<TimeWatcher>(name);
+  runtime.addWatcher<TimeWatcher>(name);
   runtime.addWatcher<DGEMMFlopsWatcher>(name, blockSize);
   runtime.addWatcher<DTRSMFlopsWatcher>(name, blockSize);
   runtime.addWatcher<DSYRKFlopsWatcher>(name, blockSize);

@@ -1,6 +1,5 @@
 #include "runtime.hpp"
 
-#include <chrono>
 #include <iostream>
 #include <sstream>
 
@@ -81,7 +80,7 @@ string TimeWatcher::summarize() const
     if (Runtime::watchedKernels_.count(entry.first) != 1)
       continue;
     for (auto &instance : entry.second)
-      ss << name << " " << entry.first << " time-ms " << threadId << " " << instance.count() << "\n";
+      ss << name << " " << entry.first << " time-ms " << threadId << " " << chrono::duration_cast<chrono::duration<double, milli>>(instance).count() << "\n";
   }
   return ss.str();
 }

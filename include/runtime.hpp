@@ -14,6 +14,7 @@
 #include <functional>
 #include <cstdint>
 #include <condition_variable>
+#include <chrono>
 #include "kernel.hpp"
 
 class Executable final {
@@ -81,7 +82,6 @@ class TimeWatcher : public Watcher {
     using TimePoint = std::chrono::time_point<TimeClock>;
     using TimeDuration = std::chrono::duration<double>;
     std::map<std::string, std::vector<TimeDuration>> watchMap_;
-    uint64_t start_ = 0;
     TimePoint timeBefore_;
   public:
     TimeWatcher(int threadId, const std::string &name) : Watcher(threadId, name) {};
