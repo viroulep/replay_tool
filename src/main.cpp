@@ -25,7 +25,6 @@ int main(int argc, char **argv)
 {
   hwloc_topology_init(&topo);
   hwloc_topology_load(topo);
-  map<string, int> paramsInstanceMap;
   map<string, Param *> dataMap;
   // FIXME: annoying to manage...
   set<vector<Param *> *> paramsAllocated;
@@ -37,52 +36,28 @@ int main(int argc, char **argv)
   Runtime::watchedKernels_.insert("dgemm");
   Runtime::watchedKernels_.insert("dtrsm");
   Runtime::watchedKernels_.insert("dsyrk");
-  // FIXME: obviously to specific...
-  int blockSize = 512;
 
   vector<Node> actions;
   string name = "unknown";
 
-  if (argc > 1) {
-    // Get variables
-    // Get parameters
-    // Get actions
-    // Get watchers
-    Node config = YAML::LoadFile(argv[1]);
-    auto data = config["scenarii"]["data"].as<map<string, Node>>();
-    for (auto &var : data) {
-      dataMap[var.first] = Param::createParam(var.second["type"].as<string>(), var.second["value"]);
-    }
-    //for (auto &var : dataMap) {
-      //cout << var.first << ": " << var.second->toString() << "\n";
-    //}
-    actions = config["scenarii"]["actions"].as<vector<Node>>();
-    if (config["scenarii"]["name"].IsDefined())
-      name = config["scenarii"]["name"].as<string>();
-
-    /*
-    auto kernels = config["scenarii"]["actions"].as<map<string, Node>>();
-    cout << "Detecting kernels:\n";
-    for (auto &entry : kernels) {
-      cout << "Entry is: " << entry.first;
-      Kernel *k = Kernel::createKernel(entry.second["type"].as<string>());
-      cout << " Instanciated kernel is: ";
-      if (k)
-        cout << k->name() << "\n";
-      else
-        cout << "null...\n";
-    }
-    cout << "Detecting execution_params:\n";
-    Node executionNode = config["scenarii"]["execution"];
-    auto params = executionNode["execution_params"].as<map<string, Node>>();
-    for (auto &entry : params) {
-      cout << "Found: " << entry.first << "=" << entry.second[0].as<int>() << "\n";
-      paramsInstanceMap[entry.first] = entry.second[0].as<int>();
-    }
-    */
+  if (argc != 2) {
+    cerr << "Please provide a scenario file!\n";
+    exit(EXIT_FAILURE);
+  }
+  // Get variables
+  // Get parameters
+  // Get actions
+  // Get watchers
+  Node config = YAML::LoadFile(argv[1]);
+  auto data = config["scenarii"]["data"].as<map<string, Node>>();
+  for (auto &var : data) {
+    dataMap[var.first] = Param::createParam(var.second["type"].as<string>(), var.second["value"]);
   }
 
-  //cout << "Actions: \n";
+  actions = config["scenarii"]["actions"].as<vector<Node>>();
+  if (config["scenarii"]["name"].IsDefined())
+    name = config["scenarii"]["name"].as<string>();
+
 
   set<int> cores;
   // TODO: repeat the following for all "params" in the scenario!
@@ -92,18 +67,54 @@ int main(int argc, char **argv)
     }
   }
 
-  if (dataMap.count("bs") > 0)
-    // yepyepyep, could be a segfault if the user is not aware
-    blockSize = dyn_cast_or_null<ParamImpl<int>>(dataMap["bs"])->get();
 
   Runtime runtime(cores);
-  //runtime.addWatcher<CycleWatcher>();
-  runtime.addWatcher<TimeWatcher>(name);
-  runtime.addWatcher<DGEMMFlopsWatcher>(name, blockSize);
-  runtime.addWatcher<DTRSMFlopsWatcher>(name, blockSize);
-  runtime.addWatcher<DSYRKFlopsWatcher>(name, blockSize);
-  //runtime.addWatcher<SyncWatcher>();
-  // TODO: perfcounter watcher
+
+
+  if (config["scenarii"]["watchers"].IsDefined()) {
+    auto watchers = config["scenarii"]["watchers"].as<map<string, Node>>();
+    for (auto &entry : watchers) {
+      if (entry.first == "papi") {
+        cout << "Adding PAPI to watchers\n";
+        if (PAPI_library_init(PAPI_VER_CURRENT) != PAPI_VER_CURRENT) {
+          cerr << "Can't init papi\n";
+          exit(EXIT_FAILURE);
+        }
+        auto counters = entry.second.as<vector<string>>();
+        vector<int> papiCounters;
+        for (string &s : counters) {
+          int eventCode;
+          if (PAPI_event_name_to_code(const_cast<char *>(s.c_str()), &eventCode) != PAPI_OK) {
+            cerr << "Couldn't find counter '" << s << "', exiting\n";
+            exit(EXIT_FAILURE);
+          }
+          papiCounters.push_back(eventCode);
+        }
+        PerfCtrWatcher::setEvents(papiCounters);
+
+        runtime.addWatcher<PerfCtrWatcher>(name, papiCounters.size());
+      } else if (entry.first == "flops_dgemm") {
+        auto params = entry.second.as<vector<string>>();
+        // FIXME: handle error if not enough params
+        int blockSize = dyn_cast_or_null<ParamImpl<int>>(dataMap[params.front()])->get();
+        runtime.addWatcher<DGEMMFlopsWatcher>(name, blockSize);
+      } else if (entry.first == "flops_dtrsm") {
+        auto params = entry.second.as<vector<string>>();
+        int blockSize = dyn_cast_or_null<ParamImpl<int>>(dataMap[params.front()])->get();
+        runtime.addWatcher<DTRSMFlopsWatcher>(name, blockSize);
+      } else if (entry.first == "flops_dsyrk") {
+        auto params = entry.second.as<vector<string>>();
+        int blockSize = dyn_cast_or_null<ParamImpl<int>>(dataMap[params.front()])->get();
+        runtime.addWatcher<DSYRKFlopsWatcher>(name, blockSize);
+      } else if (entry.first == "time") {
+        runtime.addWatcher<TimeWatcher>(name);
+      } else if (entry.first == "sync") {
+        runtime.addWatcher<SyncWatcher>(name);
+      }
+    }
+  }
+
+
 
   for (auto &a : actions) {
     switch (a.Type()) {
@@ -168,100 +179,4 @@ int main(int argc, char **argv)
 
   hwloc_topology_destroy(topo);
   return 0;
-#if 0
-
-  set<int> threads;
-  //threads.insert(0);
-  //threads.insert(1);
-  //threads.insert(2);
-  //threads.insert(3);
-  //threads.insert(32);
-  //threads.insert(4);
-  Runtime r(threads);
-  r.addWatcher<CycleWatcher>();
-  r.addWatcher<TimeWatcher>();
-  r.addWatcher<SyncWatcher>();
-
-  DGEMM d1, d2, d3;
-  AffinityChecker *a1 = cast<AffinityChecker>(Kernel::createKernel("AffinityChecker"));
-
-  //Executable phony = [] {
-    //;
-  //};
-
-  Executable execCode1 = [&] {
-    d1.execute(vector<Param *>());
-  };
-
-  Executable initA1 = [a1] {
-    a1->init(vector<Param *>());
-  };
-
-  Executable &&toto = [&] {
-    cout << "toto\n";
-  };
-
-  initA1();
-
-  Task initTask = Task(initA1, true, false, 1, "test");
-  Task phonytask = Task(phony, true, false, 1, "phony");
-
-  ParamInt defaultSize(4096);
-
-  //Task t(make_init(a1, nullptr), true, false, "Tinit");
-  //Task t_2(make_init(a1, nullptr), true, false, "Tinit");
-  //Task t_3(make_init(a1, nullptr), true, false, "Tinit");
-  //Task t_4(make_init(a1, nullptr), true, false, "Tinit");
-  Task t2(make_init(d2, defaultSize), false, false, 1, "T2init");
-  Task t3(make_init(d3, defaultSize), false, false, 1, "T3init");
-  //Task tExec(make_exec(d1), true, false, "Texec");
-  Task t2Exec(make_exec(d2), true, false, 1, "T2exec");
-  Task t3Exec(make_exec(d3), true, false, 1, "T3exec");
-  //Task tExec2(execCode, true, false, "Texecbis");
-  //Task t2Exec2(make_exec(d2), true, false, "T2execbis");
-
-  //r.run(0, t2);
-  //r.run(0, t2Exec);
-  //r.run(1, t3);
-  //r.run(1, t3Exec);
-  //r.run(0, initTask);
-  //r.run(1, phonytask);
-  //for (int i = 0; i < 4; i++) {
-    //if (i == 0)
-      //r.run(i, Task([]{ cout << "coucou\n"; }, false, false, "task"));
-  //}
-  //for (int i = 0; i < 1; i++) {
-    //exec_on_and_sync(r, initTask, phonytask, 0, 4);
-    //exec_on_and_sync(r, initTask, phonytask, 1, 4);
-    //exec_on_and_sync(r, initTask, phonytask, 2, 4);
-    //exec_on_and_sync(r, initTask, phonytask, 3, 4);
-    //exec_on_and_sync(r, initTask, phonytask, 32, 33);
-  //}
-  //this_thread::sleep_for(chrono::seconds(1));
-
-  //r.run(1, std::move(t));
-  //r.run(2, std::move(t));
-  //r.run(3, std::move(t));
-  //r.run(0, std::move(tExec));
-  //r.run(4, std::move(t2));
-  //r.run(4, std::move(t2Exec));
-  //r.run(4, std::move(t3));
-  //r.run(4, std::move(t3Exec));
-  //r.run(1, std::move(t3));
-  //r.run(1, std::move(t4));
-  //r.run(2, make_init(d2, 256));
-  //r.run(1, execCode);
-  //r.run(2, make_exec(d2));
-
-
-  //run(r, d2, 2, 512);
-
-
-  r.done();
-
-  delete a1;
-
-  hwloc_topology_destroy(topo);
-  return 0;
-#endif
 }

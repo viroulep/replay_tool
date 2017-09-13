@@ -4,6 +4,7 @@
 #include <vector>
 #include <deque>
 #include <map>
+#include <array>
 #include <set>
 #include <list>
 #include <string>
@@ -15,7 +16,10 @@
 #include <cstdint>
 #include <condition_variable>
 #include <chrono>
+#include <papi.h>
 #include "kernel.hpp"
+
+const int MAX_EVENTS = 4;
 
 class Executable final {
   intptr_t FunctionPtr;
@@ -86,6 +90,23 @@ class TimeWatcher : public Watcher {
   public:
     TimeWatcher(int threadId, const std::string &name) : Watcher(threadId, name) {};
     virtual ~TimeWatcher() {};
+    virtual void before();
+    virtual void after(const std::string &name);
+    virtual std::string summarize() const;
+};
+
+class PerfCtrWatcher : public Watcher {
+  public:
+    const int numEvents;
+    static std::array<int, MAX_EVENTS> events;
+    using PerfRecordValue = std::array<long long, MAX_EVENTS>;
+  protected:
+    std::map<std::string, std::vector<PerfRecordValue>> watchMap_;
+    PerfRecordValue valuesBefore_;
+  public:
+    PerfCtrWatcher(int threadId, const std::string &name, int nEvents) : Watcher(threadId, name), numEvents(nEvents) {};
+    static void setEvents(const std::vector<int> &eventsVector);
+    virtual ~PerfCtrWatcher() {};
     virtual void before();
     virtual void after(const std::string &name);
     virtual std::string summarize() const;

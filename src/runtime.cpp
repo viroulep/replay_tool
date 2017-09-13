@@ -9,6 +9,7 @@ using namespace std;
 
 map<string, KernelFunction> Runtime::kernels_;
 set<string> Runtime::watchedKernels_;
+array<int, MAX_EVENTS> PerfCtrWatcher::events;
 
 void dummy(const vector<Param *> *)
 {}
@@ -57,6 +58,51 @@ void SyncWatcher::before()
 void SyncWatcher::after(const string &name)
 {
   watchMap_[name].push_back(begin);
+}
+
+void PerfCtrWatcher::before()
+{
+  if (PAPI_start_counters(events.data(), numEvents) != PAPI_OK) {
+    cerr << "Before::Can't read PAPI counters, exiting\n";
+    exit(EXIT_FAILURE);
+  }
+}
+
+void PerfCtrWatcher::after(const string &name)
+{
+  PerfRecordValue now;
+  if (PAPI_stop_counters(now.data(), numEvents) != PAPI_OK) {
+    cerr << "After::Can't read PAPI counters, exiting\n";
+    exit(EXIT_FAILURE);
+  }
+  watchMap_[name].push_back(now);
+}
+
+string PerfCtrWatcher::summarize() const
+{
+  stringstream ss;
+  for (auto &entry : watchMap_) {
+    if (Runtime::watchedKernels_.count(entry.first) != 1)
+      continue;
+    for (auto &instance : entry.second) {
+      ss << name << " " << entry.first << " counters " << threadId << " ";
+      for (int i = 0; i < numEvents; i++) {
+         ss << " " << instance[i];
+      }
+      ss << "\n";
+    }
+  }
+  return ss.str();
+}
+
+void PerfCtrWatcher::setEvents(const vector<int> &eventsVector)
+{
+  if (eventsVector.size() > events.size()) {
+    cerr << "Too many events!";
+    exit(EXIT_FAILURE);
+  }
+  for (int i = 0; i < eventsVector.size(); i++)
+    events[i] = eventsVector[i];
 }
 
 string CycleWatcher::summarize() const
