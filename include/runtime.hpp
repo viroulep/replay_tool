@@ -16,6 +16,8 @@
 #include <cstdint>
 #include <condition_variable>
 #include <chrono>
+#include <iostream>
+#include <sstream>
 #include <papi.h>
 #include "kernel.hpp"
 
@@ -57,59 +59,134 @@ class Task {
     Task(const std::string &kernelName, const std::vector<Param *> *kernelParams, bool sync, bool flush, int repeat, const std::string &name) : kernelName(kernelName), kernelParams(kernelParams), sync(sync), flush(flush), repeat(repeat), name(name) {};
 };
 
-class Watcher {
+// CERE popov kernel extraction and replay
+
+class AbstractWatcher;
+
+struct Thread {
+  std::thread t;
+  std::deque<Task> q;
+  std::mutex m;
+  std::atomic_int go = ATOMIC_VAR_INIT(1);
+  std::list<AbstractWatcher *> watchers_;
+};
+
+class Runtime {
+  std::map<int, Thread> threads;
+  std::mutex mutex_;
+  std::condition_variable cond_;
+  std::atomic_int there[2] = { ATOMIC_VAR_INIT(0), ATOMIC_VAR_INIT(0) };
+  std::atomic_int go[2] = { ATOMIC_VAR_INIT(0), ATOMIC_VAR_INIT(0) };
+  std::atomic_int current = ATOMIC_VAR_INIT(0);
+  const int MAX_THREADS;
+  const std::string name_;
+  void initThreads(const std::set<int> &physIds);
+  public:
+
+  void work(int threadId);
+
+  Runtime(const std::set<int> &physIds, const std::string &name);
+
+  template<typename W, typename... Args>
+  void addWatcher(Args... args)
+  {
+    for (auto &entry : threads) {
+      W *w = new W(entry.first, args...);
+      entry.second.watchers_.push_back(w);
+    }
+  }
+
+
+  void run(int thread, Task &t);
+  void run(int thread, Task &&t);
+
+  void done();
+
+  static std::map<std::string, KernelFunction> kernels_;
+  static std::set<std::string> watchedKernels_;
+};
+
+class AbstractWatcher {
   protected:
     const int threadId;
-    const std::string name;
   public:
-    Watcher(int threadId, const std::string &name) : threadId(threadId), name(name) {};
-    virtual ~Watcher() {};
+    static void headers(std::list<AbstractWatcher *> watchList);
+    static void summarize(const std::string &prefix, int totalThread, int tId, std::list<AbstractWatcher *> watchList);
+    AbstractWatcher(int threadId) : threadId(threadId) {};
+    virtual ~AbstractWatcher() {};
     virtual void before() = 0;
     virtual void after(const std::string &name) = 0;
-    virtual std::string summarize() const = 0;
+    virtual std::vector<std::reference_wrapper<const std::string>> keys() = 0;
+    virtual size_t size() const = 0;
+    virtual std::string dataHeader() const = 0;
+    virtual std::string dataEntry(const std::string &name, int iteration) const = 0;
 };
 
-class CycleWatcher : public Watcher {
-  std::map<std::string, std::vector<uint64_t>> watchMap_;
-  uint64_t start_ = 0;
-  uint64_t cyclesBefore_ = 0;
+
+template<typename EntryType>
+class Watcher : public AbstractWatcher {
+  protected:
+    std::map<std::string, std::vector<EntryType>> watchMap_;
   public:
-    CycleWatcher(int threadId, const std::string &name) : Watcher(threadId, name) {};
+    Watcher(int threadId) : AbstractWatcher(threadId) {};
+    virtual ~Watcher() {};
+    virtual std::vector<std::reference_wrapper<const std::string>> keys()
+    {
+      std::vector<std::reference_wrapper<const std::string>> ret;
+      for (auto &entry : watchMap_) {
+        if (Runtime::watchedKernels_.count(entry.first) != 1)
+          continue;
+        ret.push_back(entry.first);
+      }
+      return ret;
+    }
+    virtual size_t size() const { return watchMap_.empty() ? 0 : watchMap_.begin()->second.size(); };
+};
+
+
+using CycleEntry = uint64_t;
+class CycleWatcher : public Watcher<CycleEntry> {
+  CycleEntry start_ = 0;
+  CycleEntry cyclesBefore_ = 0;
+  public:
+    CycleWatcher(int threadId) : Watcher(threadId) {};
     virtual void before();
     virtual void after(const std::string &name);
-    virtual std::string summarize() const;
+    virtual std::string dataHeader() const;
+    virtual std::string dataEntry(const std::string &name, int iteration) const;
 };
 
-class TimeWatcher : public Watcher {
+using TimeClock = std::chrono::high_resolution_clock;
+using TimePoint = std::chrono::time_point<TimeClock>;
+using TimeDuration = std::chrono::duration<double>;
+class TimeWatcher : public Watcher<TimeDuration> {
   protected:
-    using TimeClock = std::chrono::high_resolution_clock;
-    using TimePoint = std::chrono::time_point<TimeClock>;
-    using TimeDuration = std::chrono::duration<double>;
-    std::map<std::string, std::vector<TimeDuration>> watchMap_;
     TimePoint timeBefore_;
   public:
-    TimeWatcher(int threadId, const std::string &name) : Watcher(threadId, name) {};
+    TimeWatcher(int threadId) : Watcher(threadId) {};
     virtual ~TimeWatcher() {};
     virtual void before();
     virtual void after(const std::string &name);
-    virtual std::string summarize() const;
+    virtual std::string dataHeader() const;
+    virtual std::string dataEntry(const std::string &name, int iteration) const;
 };
 
-class PerfCtrWatcher : public Watcher {
+using PerfRecordValue = std::array<long long, MAX_EVENTS>;
+class PerfCtrWatcher : public Watcher<PerfRecordValue> {
   public:
     const int numEvents;
     static std::array<int, MAX_EVENTS> events;
-    using PerfRecordValue = std::array<long long, MAX_EVENTS>;
+    static std::array<std::string, MAX_EVENTS> eventsNames;
   protected:
-    std::map<std::string, std::vector<PerfRecordValue>> watchMap_;
     PerfRecordValue valuesBefore_;
   public:
-    PerfCtrWatcher(int threadId, const std::string &name, int nEvents) : Watcher(threadId, name), numEvents(nEvents) {};
-    static void setEvents(const std::vector<int> &eventsVector);
+    PerfCtrWatcher(int threadId, int nEvents) : Watcher(threadId), numEvents(nEvents) {};
+    static void setEvents(const std::vector<std::string> &eventsVector);
     virtual ~PerfCtrWatcher() {};
     virtual void before();
     virtual void after(const std::string &name);
-    virtual std::string summarize() const;
+    virtual std::string dataHeader() const;
+    virtual std::string dataEntry(const std::string &name, int iteration) const;
 };
 
 // See LAWN 41
@@ -131,82 +208,39 @@ static double fmuls_trsm(double m, double n)
 static double fadds_trsm(double m, double n)
 { return 0.5 * (n) * (m) * ((m)-1); }
 
-class DGEMMFlopsWatcher : public TimeWatcher {
+class FlopsWatcher : public TimeWatcher {
   public:
-    const double FlopsDgemm;
-    DGEMMFlopsWatcher(int threadId, const std::string &name, int blockSize) : TimeWatcher(threadId, name), FlopsDgemm(fmuls_gemm(blockSize, blockSize, blockSize) + fadds_gemm(blockSize, blockSize, blockSize)) {};
-    virtual std::string summarize() const;
+    const double FLOPS;
+    FlopsWatcher(int threadId, double flops) : TimeWatcher(threadId), FLOPS(flops) {};
+    virtual std::string dataHeader() const;
+    virtual std::string dataEntry(const std::string &name, int iteration) const;
 };
 
-class DTRSMFlopsWatcher : public TimeWatcher {
+class DGEMMFlopsWatcher : public FlopsWatcher {
   public:
-    const double FlopsDtrsm;
-    DTRSMFlopsWatcher(int threadId, const std::string &name, int blockSize) : TimeWatcher(threadId, name), FlopsDtrsm(fmuls_trsm(blockSize, blockSize) + fadds_trsm(blockSize, blockSize)) {};
-    virtual std::string summarize() const;
+    DGEMMFlopsWatcher(int threadId, int blockSize) : FlopsWatcher(threadId, fmuls_gemm(blockSize, blockSize, blockSize) + fadds_gemm(blockSize, blockSize, blockSize)) {};
 };
 
-class DSYRKFlopsWatcher : public TimeWatcher {
+class DTRSMFlopsWatcher : public FlopsWatcher {
   public:
-    const double FlopsDsyrk;
-    DSYRKFlopsWatcher(int threadId, const std::string &name, int blockSize) : TimeWatcher(threadId, name), FlopsDsyrk(fmuls_syrk(blockSize, blockSize) + fadds_syrk(blockSize, blockSize)) {};
-    virtual std::string summarize() const;
+    DTRSMFlopsWatcher(int threadId, int blockSize) : FlopsWatcher(threadId, fmuls_trsm(blockSize, blockSize) + fadds_trsm(blockSize, blockSize)) {};
 };
 
-class SyncWatcher : public Watcher {
-  std::map<std::string, std::vector<uint64_t>> watchMap_;
-  uint64_t begin = 0;
+class DSYRKFlopsWatcher : public FlopsWatcher {
   public:
-    SyncWatcher(int threadId, const std::string &name) : Watcher(threadId, name) {};
+    DSYRKFlopsWatcher(int threadId, int blockSize) : FlopsWatcher(threadId, fmuls_syrk(blockSize, blockSize) + fadds_syrk(blockSize, blockSize)) {};
+};
+
+class SyncWatcher : public Watcher<CycleEntry> {
+  CycleEntry begin = 0;
+  public:
+    SyncWatcher(int threadId) : Watcher(threadId) {};
     virtual void before();
     virtual void after(const std::string &name);
-    virtual std::string summarize() const;
+    virtual std::string dataHeader() const;
+    virtual std::string dataEntry(const std::string &name, int iteration) const;
 };
 
 
-// CERE popov kernel extraction and replay
-
-struct Thread {
-  std::thread t;
-  std::deque<Task> q;
-  std::mutex m;
-  std::atomic_int go = ATOMIC_VAR_INIT(1);
-  std::list<Watcher *> watchers_;
-};
-
-class Runtime {
-  std::map<int, Thread> threads;
-  std::mutex mutex_;
-  std::condition_variable cond_;
-  std::atomic_int there[2] = { ATOMIC_VAR_INIT(0), ATOMIC_VAR_INIT(0) };
-  std::atomic_int go[2] = { ATOMIC_VAR_INIT(0), ATOMIC_VAR_INIT(0) };
-  std::atomic_int current = ATOMIC_VAR_INIT(0);
-  const int max;
-  void initThreads(const std::set<int> &physIds);
-  public:
-
-  void work(int threadId);
-
-  Runtime(const std::set<int> &physIds);
-
-  template<typename W, typename... Args>
-  void addWatcher(const std::string &name, Args... args)
-  {
-    for (auto &entry : threads) {
-      W *w = new W(entry.first, name, args...);
-      entry.second.watchers_.push_back(w);
-    }
-  }
-
-
-  void run(int thread, Task &t);
-  void run(int thread, Task &&t);
-
-  void done();
-
-  static void watcherSummary(int id, const Thread &t);
-
-  static std::map<std::string, KernelFunction> kernels_;
-  static std::set<std::string> watchedKernels_;
-};
 
 #endif

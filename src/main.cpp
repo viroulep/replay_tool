@@ -68,48 +68,33 @@ int main(int argc, char **argv)
   }
 
 
-  Runtime runtime(cores);
+  Runtime runtime(cores, name);
 
 
   if (config["scenarii"]["watchers"].IsDefined()) {
     auto watchers = config["scenarii"]["watchers"].as<map<string, Node>>();
     for (auto &entry : watchers) {
       if (entry.first == "papi") {
-        cout << "Adding PAPI to watchers\n";
-        if (PAPI_library_init(PAPI_VER_CURRENT) != PAPI_VER_CURRENT) {
-          cerr << "Can't init papi\n";
-          exit(EXIT_FAILURE);
-        }
-        auto counters = entry.second.as<vector<string>>();
-        vector<int> papiCounters;
-        for (string &s : counters) {
-          int eventCode;
-          if (PAPI_event_name_to_code(const_cast<char *>(s.c_str()), &eventCode) != PAPI_OK) {
-            cerr << "Couldn't find counter '" << s << "', exiting\n";
-            exit(EXIT_FAILURE);
-          }
-          papiCounters.push_back(eventCode);
-        }
-        PerfCtrWatcher::setEvents(papiCounters);
-
-        runtime.addWatcher<PerfCtrWatcher>(name, papiCounters.size());
+        vector<string> counters = entry.second.as<vector<string>>();
+        PerfCtrWatcher::setEvents(counters);
+        runtime.addWatcher<PerfCtrWatcher>(counters.size());
       } else if (entry.first == "flops_dgemm") {
         auto params = entry.second.as<vector<string>>();
         // FIXME: handle error if not enough params
         int blockSize = dyn_cast_or_null<ParamImpl<int>>(dataMap[params.front()])->get();
-        runtime.addWatcher<DGEMMFlopsWatcher>(name, blockSize);
+        runtime.addWatcher<DGEMMFlopsWatcher>(blockSize);
       } else if (entry.first == "flops_dtrsm") {
         auto params = entry.second.as<vector<string>>();
         int blockSize = dyn_cast_or_null<ParamImpl<int>>(dataMap[params.front()])->get();
-        runtime.addWatcher<DTRSMFlopsWatcher>(name, blockSize);
+        runtime.addWatcher<DTRSMFlopsWatcher>(blockSize);
       } else if (entry.first == "flops_dsyrk") {
         auto params = entry.second.as<vector<string>>();
         int blockSize = dyn_cast_or_null<ParamImpl<int>>(dataMap[params.front()])->get();
-        runtime.addWatcher<DSYRKFlopsWatcher>(name, blockSize);
+        runtime.addWatcher<DSYRKFlopsWatcher>(blockSize);
       } else if (entry.first == "time") {
-        runtime.addWatcher<TimeWatcher>(name);
+        runtime.addWatcher<TimeWatcher>();
       } else if (entry.first == "sync") {
-        runtime.addWatcher<SyncWatcher>(name);
+        runtime.addWatcher<SyncWatcher>();
       }
     }
   }

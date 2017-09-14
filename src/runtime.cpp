@@ -1,8 +1,5 @@
 #include "runtime.hpp"
 
-#include <iostream>
-#include <sstream>
-
 #include <pthread.h>
 
 using namespace std;
@@ -10,6 +7,7 @@ using namespace std;
 map<string, KernelFunction> Runtime::kernels_;
 set<string> Runtime::watchedKernels_;
 array<int, MAX_EVENTS> PerfCtrWatcher::events;
+array<string, MAX_EVENTS> PerfCtrWatcher::eventsNames;
 
 void dummy(const vector<Param *> *)
 {}
@@ -25,6 +23,31 @@ void Executable::operator()() const {
   Callback(FunctionPtr);
 }
 
+void AbstractWatcher::headers(list<AbstractWatcher *> watcherList)
+{
+  if (watcherList.empty())
+    return;
+  cout << "Exp total_cores kernel thread";
+  for (auto &watcher : watcherList)
+    cout << watcher->dataHeader();
+  cout << "\n";
+}
+
+void AbstractWatcher::summarize(const string &prefix, int totalThread, int tId, list<AbstractWatcher *> watcherList)
+{
+  if (watcherList.empty())
+    return;
+  auto keys = watcherList.front()->keys();
+  for (const string &kernelName : keys) {
+    for (int i = 0; i < watcherList.front()->size(); i++) {
+      cout << prefix << " " << totalThread << " " << kernelName << " " << tId << " ";
+      for (auto &watcher : watcherList) {
+        cout << watcher->dataEntry(kernelName, i);
+      }
+      cout << "\n";
+    }
+  }
+}
 
 void CycleWatcher::before()
 {
@@ -78,108 +101,93 @@ void PerfCtrWatcher::after(const string &name)
   watchMap_[name].push_back(now);
 }
 
-string PerfCtrWatcher::summarize() const
+string CycleWatcher::dataHeader() const
+{
+  return " cycle";
+}
+
+string TimeWatcher::dataHeader() const
+{
+  return " time-ms";
+}
+
+string PerfCtrWatcher::dataHeader() const
 {
   stringstream ss;
-  for (auto &entry : watchMap_) {
-    if (Runtime::watchedKernels_.count(entry.first) != 1)
-      continue;
-    for (auto &instance : entry.second) {
-      ss << name << " " << entry.first << " counters " << threadId << " ";
-      for (int i = 0; i < numEvents; i++) {
-         ss << " " << instance[i];
-      }
-      ss << "\n";
-    }
-  }
+  for (string &name : PerfCtrWatcher::eventsNames)
+    ss << " " << name;
   return ss.str();
 }
 
-void PerfCtrWatcher::setEvents(const vector<int> &eventsVector)
+string FlopsWatcher::dataHeader() const
 {
+  return " gflops";
+}
+
+string SyncWatcher::dataHeader() const
+{
+  return " cycle-sync";
+}
+
+string PerfCtrWatcher::dataEntry(const string &name, int iteration) const
+{
+  stringstream ss;
+  auto &entry = watchMap_.at(name)[iteration];
+  for (int i = 0; i < numEvents; i++)
+    ss << " " << entry[i];
+  return ss.str();
+}
+
+void PerfCtrWatcher::setEvents(const vector<string> &eventsVector)
+{
+  if (PAPI_library_init(PAPI_VER_CURRENT) != PAPI_VER_CURRENT) {
+    cerr << "Can't init papi\n";
+    exit(EXIT_FAILURE);
+  }
   if (eventsVector.size() > events.size()) {
     cerr << "Too many events!";
     exit(EXIT_FAILURE);
   }
-  for (int i = 0; i < eventsVector.size(); i++)
-    events[i] = eventsVector[i];
+  int i = 0;
+  for (const string &s : eventsVector) {
+    int eventCode;
+    if (PAPI_event_name_to_code(const_cast<char *>(s.c_str()), &eventCode) != PAPI_OK) {
+      cerr << "Couldn't find counter '" << s << "', exiting\n";
+      exit(EXIT_FAILURE);
+    }
+    events[i] = eventCode;
+    eventsNames[i++] = s;
+  }
 }
 
-string CycleWatcher::summarize() const
+string SyncWatcher::dataEntry(const std::string &name, int iteration) const
 {
-  stringstream ss;
-  for (auto &entry : watchMap_) {
-    if (Runtime::watchedKernels_.count(entry.first) != 1)
-      continue;
-    ss << "  cycle-" << entry.first << "-" << threadId << ": [";
-    for (auto &instance : entry.second)
-      ss << instance << ", ";
-    ss << "]\n";
-  }
+  std::stringstream ss;
+  ss << " " << watchMap_.at(name)[iteration];
   return ss.str();
 }
 
-string TimeWatcher::summarize() const
+string CycleWatcher::dataEntry(const std::string &name, int iteration) const
 {
-  stringstream ss;
-  for (auto &entry : watchMap_) {
-    if (Runtime::watchedKernels_.count(entry.first) != 1)
-      continue;
-    for (auto &instance : entry.second)
-      ss << name << " " << entry.first << " time-ms " << threadId << " " << chrono::duration_cast<chrono::duration<double, milli>>(instance).count() << "\n";
-  }
+  std::stringstream ss;
+  ss << " " << watchMap_.at(name)[iteration];
   return ss.str();
 }
 
-string DGEMMFlopsWatcher::summarize() const
+string TimeWatcher::dataEntry(const string &name, int iteration) const
 {
   stringstream ss;
-  for (auto &entry : watchMap_) {
-    if (Runtime::watchedKernels_.count(entry.first) != 1 || entry.first != "dgemm")
-      continue;
-    for (auto &instance : entry.second)
-      ss << name << " " << entry.first << " gflops " << threadId << " " << (1e-9*FlopsDgemm)/instance.count() << "\n";
-  }
+  ss << " " << chrono::duration_cast<chrono::duration<double, milli>>(watchMap_.at(name)[iteration]).count();
   return ss.str();
 }
 
-string DSYRKFlopsWatcher::summarize() const
+string FlopsWatcher::dataEntry(const string &name, int iteration) const
 {
   stringstream ss;
-  for (auto &entry : watchMap_) {
-    if (Runtime::watchedKernels_.count(entry.first) != 1 || entry.first != "dsyrk")
-      continue;
-    for (auto &instance : entry.second)
-      ss << name << " " << entry.first << " gflops " << threadId << " " << (1e-9*FlopsDsyrk)/instance.count() << "\n";
-  }
+  ss << " " << (1e-9*FLOPS)/watchMap_.at(name)[iteration].count();
   return ss.str();
 }
 
-string DTRSMFlopsWatcher::summarize() const
-{
-  stringstream ss;
-  for (auto &entry : watchMap_) {
-    if (Runtime::watchedKernels_.count(entry.first) != 1 || entry.first != "dtrsm")
-      continue;
-    for (auto &instance : entry.second)
-      ss << name << " " << entry.first << " gflops " << threadId << " " << (1e-9*FlopsDtrsm)/instance.count() << "\n";
-  }
-  return ss.str();
-}
-
-string SyncWatcher::summarize() const
-{
-  stringstream ss;
-  for (auto &entry : watchMap_) {
-    if (Runtime::watchedKernels_.count(entry.first) != 1)
-      continue;
-    ss << name << " " << "  sync-cycle-" << entry.first << "-" << threadId << ": [";
-    for (auto &instance : entry.second)
-      ss << instance << ", ";
-    ss << "]\n";
-  }
-  return ss.str();
-}
 
 void Runtime::work(int threadId) {
   //FIXME some check on boundaries
@@ -207,7 +215,7 @@ void Runtime::work(int threadId) {
         // This gives roughly <200 cycles between the start of two synchronous tasks
         int localCurrent = current.load(std::memory_order_acquire);
         int position = there[localCurrent]++;
-        if (position + 1 == max) {
+        if (position + 1 == MAX_THREADS) {
           current.store(1 - current);
           there[current] = 0;
           go[current] = 0;
@@ -232,7 +240,7 @@ void Runtime::work(int threadId) {
 #endif
       }
       for (int i = 0; i < task.repeat; i++) {
-        for (Watcher *w : thread.watchers_)
+        for (AbstractWatcher *w : thread.watchers_)
           w->before();
         //TODO flush
         if (kernels_.find(task.kernelName) != kernels_.end())
@@ -241,7 +249,7 @@ void Runtime::work(int threadId) {
           cout << "Can't find the kernel " << task.kernelName << ", fatal error\n";
           exit(EXIT_FAILURE);
         }
-        for (Watcher *w : thread.watchers_)
+        for (AbstractWatcher *w : thread.watchers_)
           w->after(task.name);
       }
     }
@@ -265,12 +273,6 @@ void Runtime::run(int thread, Task &&code)
   t.q.push_back(std::forward<Task>(code));
 }
 
-void Runtime::watcherSummary(int id, const Thread &t)
-{
-  for (Watcher *w : t.watchers_)
-    cout << w->summarize();
-}
-
 void Runtime::done()
 {
   // Two separate loop to avoid thread spinning on 'go' while joining!
@@ -280,9 +282,10 @@ void Runtime::done()
     std::thread &t = entry.second.t;
     t.join();
   }
+  AbstractWatcher::headers(threads.begin()->second.watchers_);
   for (auto &entry : threads) {
-    Runtime::watcherSummary(entry.first, entry.second);
-    for (Watcher *w : entry.second.watchers_)
+    AbstractWatcher::summarize(name_, MAX_THREADS, entry.first, entry.second.watchers_);
+    for (AbstractWatcher *w : entry.second.watchers_)
       delete w;
   }
 }
@@ -298,7 +301,7 @@ void Runtime::initThreads(const set<int> &physIds)
     threads[cpuId].t = thread([this, cpuId] {work(cpuId);});
 }
 
-Runtime::Runtime(const set<int> &physIds) : max(physIds.size())
+Runtime::Runtime(const set<int> &physIds, const string &name) : MAX_THREADS(physIds.size()), name_(name)
 {
   initThreads(physIds);
 }
