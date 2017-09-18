@@ -10,6 +10,8 @@ when "dgemm"
   args = ["a", "b", "c"]
 when "dtrsm", "dsyrk"
   args = ["a", "b"]
+when "dpotrf"
+  args = ["a"]
 else
   raise "Unrecognized kernel"
 end
@@ -27,7 +29,9 @@ puts "Filename: #{base_filename}"
   cores = (0..last_core)
   scenario = generate_scenario("brunch", kernel, "init_blas_bloc", args, blocksize, cores, remote_access, repeat)
   scenario["scenarii"]["name"] = "#{base_filename}_#{total_cores}"
-  scenario["scenarii"]["watchers"] = { "flops_dgemm" => ["bs"] }
+  scenario["scenarii"]["watchers"] = { "flops_#{kernel}" => ["bs"], "papi" => ["PAPI_L3_TCM", "PAPI_L3_DCR", "PAPI_L3_DCW"], "time" => ["toto"] }
+  #scenario["scenarii"]["watchers"] = { "flops_dgemm" => ["bs"], "papi" => ["PAPI_TOT_CYC"] }
+  #scenario["scenarii"]["watchers"] = { "flops_dgemm" => ["bs"] }
   File.open(scenario["scenarii"]["name"].tr(' ', '_') + ".yml", 'w') do |file|
       file.write(scenario.to_yaml)
   end

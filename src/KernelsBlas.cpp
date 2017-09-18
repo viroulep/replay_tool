@@ -24,6 +24,9 @@ void init_blas_bloc(const std::vector<Param *> *VP)
   hwloc_bitmap_free(aff);
   int seed[] = {0,0,0,1};
   LAPACKE_dlarnv(1, seed, nElem, block);
+  for (int i = 0; i < nElem; i++)
+    if (block[i] < 0)
+      block[i] = (-block[i]);
   blockParam->set(block);
 }
 
@@ -58,9 +61,19 @@ void kernel_dsyrk(const std::vector<Param *> *VP)
   ParamImpl<double *> *aParam = getNthParam<0, double *>(VP);
   ParamImpl<double *> *cParam = getNthParam<1, double *>(VP);
   ParamImpl<int> *tileSizeParam = getNthParam<0, int>(VP);
-  assert(aParam && cParam && tileSizeParam && "One of the expected params to DTRSM is null!");
+  assert(aParam && cParam && tileSizeParam && "One of the expected params to DSYRK is null!");
   double *a = aParam->get(), *c = cParam->get();
   int tileSize = tileSizeParam->get();
   cblas_dsyrk(CblasRowMajor, CblasUpper, CblasNoTrans, tileSize, tileSize, 1,
               a, tileSize, 1, c, tileSize);
+}
+
+void kernel_dpotrf(const std::vector<Param *> *VP)
+{
+  ParamImpl<double *> *aParam = getNthParam<0, double *>(VP);
+  ParamImpl<int> *tileSizeParam = getNthParam<0, int>(VP);
+  assert(aParam  && tileSizeParam && "One of the expected params to DPOTRF is null!");
+  double *a = aParam->get();
+  int tileSize = tileSizeParam->get();
+  LAPACKE_dpotrf_work(LAPACK_COL_MAJOR, 'U', tileSize, a, tileSize);
 }

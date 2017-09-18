@@ -2,16 +2,6 @@ require 'yaml'
 
 require_relative './util.rb'
 
-first = ARGV[0].to_i || 0
-last = ARGV[1].to_i || 0
-base_filename = ARGV[2] || "scenario"
-remote_access = ARGV[3] || "false"
-remote_access = remote_access.to_s == "true"
-puts "Remote access: #{remote_access}"
-if last - first < 0 || first < 0
-    raise "Can't generate less than 1 scenario"
-end
-
 def get_phy_core_from_i(machine, i)
   case machine
   when "brunch"
@@ -25,7 +15,7 @@ end
 def get_phy_core_on_next_node_from_i(machine, i)
   case machine
   when "brunch"
-    (i+1)%96
+    (get_phy_core_from_i(machine, i)+1)%96
   else
     i
   end
@@ -48,11 +38,14 @@ def generate_scenario(machine, kernel_name, init_func, args, blocksize, cores, s
       create_data(scenario, arg_name, "double*")
       create_action(scenario, init_func, init_core, 1, false, arg_name, "bs")
     end
+  end
 
 
+  cores.each do |core|
     # If we're doing init by shifting cores, we need to spawn all compute kernels afterwards
     actual_core = get_phy_core_from_i(machine, core)
     compute_core_used << actual_core
+    arg_names = args.map { |name| "#{name}#{actual_core}" }
     create_action(scenario, kernel_name, actual_core, repeat, true, *arg_names, "bs")
   end
   init_core_used.uniq!

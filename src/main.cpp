@@ -32,10 +32,12 @@ int main(int argc, char **argv)
   Runtime::kernels_.insert(make_pair("dgemm", kernel_dgemm));
   Runtime::kernels_.insert(make_pair("dtrsm", kernel_dtrsm));
   Runtime::kernels_.insert(make_pair("dsyrk", kernel_dsyrk));
+  Runtime::kernels_.insert(make_pair("dpotrf", kernel_dpotrf));
   Runtime::kernels_.insert(make_pair("check_affinity", check_affinity));
   Runtime::watchedKernels_.insert("dgemm");
   Runtime::watchedKernels_.insert("dtrsm");
   Runtime::watchedKernels_.insert("dsyrk");
+  Runtime::watchedKernels_.insert("dpotrf");
 
   vector<Node> actions;
   string name = "unknown";
@@ -76,8 +78,7 @@ int main(int argc, char **argv)
     for (auto &entry : watchers) {
       if (entry.first == "papi") {
         vector<string> counters = entry.second.as<vector<string>>();
-        PerfCtrWatcher::setEvents(counters);
-        runtime.addWatcher<PerfCtrWatcher>(counters.size());
+        runtime.addWatcher<PerfCtrWatcher>(counters);
       } else if (entry.first == "flops_dgemm") {
         auto params = entry.second.as<vector<string>>();
         // FIXME: handle error if not enough params
@@ -91,6 +92,10 @@ int main(int argc, char **argv)
         auto params = entry.second.as<vector<string>>();
         int blockSize = dyn_cast_or_null<ParamImpl<int>>(dataMap[params.front()])->get();
         runtime.addWatcher<DSYRKFlopsWatcher>(blockSize);
+      } else if (entry.first == "flops_dpotrf") {
+        auto params = entry.second.as<vector<string>>();
+        int blockSize = dyn_cast_or_null<ParamImpl<int>>(dataMap[params.front()])->get();
+        runtime.addWatcher<DPOTRFFlopsWatcher>(blockSize);
       } else if (entry.first == "time") {
         runtime.addWatcher<TimeWatcher>();
       } else if (entry.first == "sync") {
@@ -98,7 +103,6 @@ int main(int argc, char **argv)
       }
     }
   }
-
 
 
   for (auto &a : actions) {

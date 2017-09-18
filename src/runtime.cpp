@@ -6,8 +6,6 @@ using namespace std;
 
 map<string, KernelFunction> Runtime::kernels_;
 set<string> Runtime::watchedKernels_;
-array<int, MAX_EVENTS> PerfCtrWatcher::events;
-array<string, MAX_EVENTS> PerfCtrWatcher::eventsNames;
 
 void dummy(const vector<Param *> *)
 {}
@@ -85,19 +83,34 @@ void SyncWatcher::after(const string &name)
 
 void PerfCtrWatcher::before()
 {
-  if (PAPI_start_counters(events.data(), numEvents) != PAPI_OK) {
-    cerr << "Before::Can't read PAPI counters, exiting\n";
-    exit(EXIT_FAILURE);
+  if (!started_) {
+    if (PAPI_start_counters(events.data(), numEvents) != PAPI_OK) {
+      cerr << "Before::Can't read PAPI counters, exiting\n";
+      exit(EXIT_FAILURE);
+    }
+    started_ = true;
+  } else {
+    if (PAPI_read_counters(valuesBefore_.data(), numEvents) != PAPI_OK) {
+      cerr << "Before::Can't read PAPI counters, exiting\n";
+      exit(EXIT_FAILURE);
+    }
   }
 }
 
 void PerfCtrWatcher::after(const string &name)
 {
   PerfRecordValue now;
-  if (PAPI_stop_counters(now.data(), numEvents) != PAPI_OK) {
+  //if (PAPI_stop_counters(now.data(), numEvents) != PAPI_OK) {
+    //cerr << "After::Can't read PAPI counters, exiting\n";
+    //exit(EXIT_FAILURE);
+  //}
+  if (PAPI_read_counters(now.data(), numEvents) != PAPI_OK) {
     cerr << "After::Can't read PAPI counters, exiting\n";
     exit(EXIT_FAILURE);
   }
+  for (int i = 0; i < numEvents; i++)
+    now[i] -= valuesBefore_[i];
+
   watchMap_[name].push_back(now);
 }
 
@@ -114,7 +127,7 @@ string TimeWatcher::dataHeader() const
 string PerfCtrWatcher::dataHeader() const
 {
   stringstream ss;
-  for (string &name : PerfCtrWatcher::eventsNames)
+  for (const string &name : eventsNames)
     ss << " " << name;
   return ss.str();
 }
@@ -138,18 +151,25 @@ string PerfCtrWatcher::dataEntry(const string &name, int iteration) const
   return ss.str();
 }
 
-void PerfCtrWatcher::setEvents(const vector<string> &eventsVector)
+PerfCtrWatcher::PerfCtrWatcher(int threadId,
+                               vector<string> &eventsVector) : Watcher(threadId), numEvents(eventsVector.size())
 {
   if (PAPI_library_init(PAPI_VER_CURRENT) != PAPI_VER_CURRENT) {
     cerr << "Can't init papi\n";
     exit(EXIT_FAILURE);
   }
+  //cerr << this_thread::get_id();
+  if (PAPI_thread_init((unsigned long (*)())this_thread::get_id) != PAPI_OK) {
+    cerr << "Can't init multithread support in papi\n";
+    exit(EXIT_FAILURE);
+  }
+
   if (eventsVector.size() > events.size()) {
     cerr << "Too many events!";
     exit(EXIT_FAILURE);
   }
   int i = 0;
-  for (const string &s : eventsVector) {
+  for (string &s : eventsVector) {
     int eventCode;
     if (PAPI_event_name_to_code(const_cast<char *>(s.c_str()), &eventCode) != PAPI_OK) {
       cerr << "Couldn't find counter '" << s << "', exiting\n";
@@ -240,8 +260,10 @@ void Runtime::work(int threadId) {
 #endif
       }
       for (int i = 0; i < task.repeat; i++) {
-        for (AbstractWatcher *w : thread.watchers_)
-          w->before();
+        for (AbstractWatcher *w : thread.watchers_) {
+          if (task.kernelName != "dummy" && task.kernelName != "init_blas_bloc")
+            w->before();
+        }
         //TODO flush
         if (kernels_.find(task.kernelName) != kernels_.end())
           kernels_[task.kernelName](task.kernelParams);
@@ -249,8 +271,10 @@ void Runtime::work(int threadId) {
           cout << "Can't find the kernel " << task.kernelName << ", fatal error\n";
           exit(EXIT_FAILURE);
         }
-        for (AbstractWatcher *w : thread.watchers_)
-          w->after(task.name);
+        for (AbstractWatcher *w : thread.watchers_) {
+          if (task.kernelName != "sync" && task.kernelName != "init_blas_bloc")
+            w->after(task.name);
+        }
       }
     }
     //this_thread::sleep_for(chrono::seconds(1));

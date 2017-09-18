@@ -175,13 +175,13 @@ using PerfRecordValue = std::array<long long, MAX_EVENTS>;
 class PerfCtrWatcher : public Watcher<PerfRecordValue> {
   public:
     const int numEvents;
-    static std::array<int, MAX_EVENTS> events;
-    static std::array<std::string, MAX_EVENTS> eventsNames;
+    std::array<int, MAX_EVENTS> events;
+    std::array<std::string, MAX_EVENTS> eventsNames;
   protected:
     PerfRecordValue valuesBefore_;
+    bool started_ = false;
   public:
-    PerfCtrWatcher(int threadId, int nEvents) : Watcher(threadId), numEvents(nEvents) {};
-    static void setEvents(const std::vector<std::string> &eventsVector);
+    PerfCtrWatcher(int threadId, std::vector<std::string> &eventsVector);
     virtual ~PerfCtrWatcher() {};
     virtual void before();
     virtual void after(const std::string &name);
@@ -189,7 +189,7 @@ class PerfCtrWatcher : public Watcher<PerfRecordValue> {
     virtual std::string dataEntry(const std::string &name, int iteration) const;
 };
 
-// See LAWN 41
+// See LAWN 41 and test/flops.h in plasma
 static double fmuls_gemm(double m, double n, double k)
 { return m*n*k; }
 
@@ -207,6 +207,15 @@ static double fmuls_trsm(double m, double n)
 
 static double fadds_trsm(double m, double n)
 { return 0.5 * (n) * (m) * ((m)-1); }
+
+static double fmuls_potrf(double n)
+{ return (1./6.)*n*n*n + 0.5*n*n + (1./3.)*n; }
+
+static double fadds_potrf(double n)
+{ return (1./6.)*n*n*n - (1./6.)*n; }
+//#define FMULS_POTRF(__n) ((double)(__n) * (((1. / 6.) * (double)(__n) + 0.5) * (double)(__n) + (1. / 3.)))
+//#define FADDS_POTRF(__n) ((double)(__n) * (((1. / 6.) * (double)(__n)      ) * (double)(__n) - (1. / 6.)))
+
 
 class FlopsWatcher : public TimeWatcher {
   public:
@@ -229,6 +238,11 @@ class DTRSMFlopsWatcher : public FlopsWatcher {
 class DSYRKFlopsWatcher : public FlopsWatcher {
   public:
     DSYRKFlopsWatcher(int threadId, int blockSize) : FlopsWatcher(threadId, fmuls_syrk(blockSize, blockSize) + fadds_syrk(blockSize, blockSize)) {};
+};
+
+class DPOTRFFlopsWatcher : public FlopsWatcher {
+  public:
+    DPOTRFFlopsWatcher(int threadId, int blockSize) : FlopsWatcher(threadId, fmuls_potrf(blockSize) + fadds_potrf(blockSize)) {};
 };
 
 class SyncWatcher : public Watcher<CycleEntry> {
