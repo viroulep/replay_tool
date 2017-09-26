@@ -102,6 +102,7 @@ void kernel_dgemm(const std::vector<Param *> *VP)
   int tileSize = tileSizeParam->get();
   cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, tileSize, tileSize, tileSize, 1,
               a, tileSize, b, tileSize, 1, c, tileSize);
+  ;
 }
 
 void kernel_dtrsm(const std::vector<Param *> *VP)
