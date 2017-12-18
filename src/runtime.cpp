@@ -96,13 +96,11 @@ void PerfCtrWatcher::before()
   if (!started_) {
     if (PAPI_start_counters(events.data(), numEvents) != PAPI_OK) {
       cerr << "Before::Can't read PAPI counters, exiting\n";
-      exit(EXIT_FAILURE);
     }
     started_ = true;
   } else {
     if (PAPI_read_counters(valuesBefore_.data(), numEvents) != PAPI_OK) {
-      cerr << "Before::Can't read PAPI counters, exiting\n";
-      exit(EXIT_FAILURE);
+      cerr << "Before::Can't read PAPI counters, ignoring and continuing\n";
     }
   }
 }
@@ -115,8 +113,7 @@ void PerfCtrWatcher::after(const string &name)
     //exit(EXIT_FAILURE);
   //}
   if (PAPI_read_counters(now.data(), numEvents) != PAPI_OK) {
-    cerr << "After::Can't read PAPI counters, exiting\n";
-    exit(EXIT_FAILURE);
+    cerr << "After::Can't read PAPI counters, ignoring and continuing\n";
   }
   for (int i = 0; i < numEvents; i++)
     now[i] -= valuesBefore_[i];
