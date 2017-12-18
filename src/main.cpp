@@ -128,9 +128,12 @@ int main(int argc, char **argv)
           auto actionInfo = a.as<map<string, Node>>();
           int core = actionInfo["core"].as<int>();
           string kernelName = actionInfo["kernel"].as<string>();
+          string name = kernelName;
           bool sync = false;
           bool flush = false;
           int repeat = 1;
+          if (!actionInfo["name"].IsNull())
+            name = actionInfo["name"].as<string>();
           if (!actionInfo["flush"].IsNull())
             flush = actionInfo["flush"].as<bool>();
           if (!actionInfo["sync"].IsNull())
@@ -150,13 +153,14 @@ int main(int argc, char **argv)
           debugString << ", on core " << core;
           debugString << ", repeat: " << repeat;
           debugString << ", sync: " << sync;
+          debugString << ", name: " << name;
           debugString << ", flush: " << flush << "\n";
-          if (1)
+          if (0)
             cout << debugString.str();
 
           if (Runtime::kernels_.find(kernelName) != Runtime::kernels_.end()) {
             // FIXME: That's ugly :(
-            runtime.run(core, Task(kernelName, params, sync, flush, repeat, kernelName));
+            runtime.run(core, Task(kernelName, params, sync, flush, repeat, name));
             ;
           } else {
             cout << "Can't find kernel " << kernelName << "\n";

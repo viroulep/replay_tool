@@ -17,7 +17,6 @@ void flush_cache()
 
 double *alloc_init_array(double *array, int size, bool random)
 {
-  cout << "start_init (random=" << random << ")\n";
   hwloc_nodeset_t aff = hwloc_bitmap_alloc();
   hwloc_bitmap_fill(aff);
   if (array)

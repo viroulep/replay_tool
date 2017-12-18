@@ -13,6 +13,15 @@ def get_phy_core_from_i(machine, i)
   end
 end
 
+def get_first_core_from_node(machine, node_id)
+  case machine
+  when "idchire"
+    node_id*8
+  else
+    node_id
+  end
+end
+
 def get_phy_core_on_next_node_from_i(machine, i)
   case machine
   when "brunch"
@@ -41,7 +50,7 @@ def generate_scenario(machine, kernel_name, init_func, args, blocksize, cores, s
       arg_name = "#{name}#{actual_core}"
       arg_names << arg_name
       create_data(scenario, arg_name, "double*")
-      create_action(scenario, init_func, init_core, 1, false, arg_name, "bs")
+      create_action(scenario, init_func, init_core, 1, false, false, arg_name, "bs")
     end
   end
 
@@ -51,12 +60,12 @@ def generate_scenario(machine, kernel_name, init_func, args, blocksize, cores, s
     actual_core = get_phy_core_from_i(machine, core)
     compute_core_used << actual_core
     arg_names = args.map { |name| "#{name}#{actual_core}" }
-    create_action(scenario, kernel_name, actual_core, repeat, true, *arg_names, "bs")
+    create_action(scenario, kernel_name, actual_core, repeat, true, false, *arg_names, "bs")
   end
   init_core_used.uniq!
   compute_core_used.uniq!
   (init_core_used-compute_core_used).each do |c|
-    create_action(scenario, "dummy", c, 1, true)
+    create_action(scenario, "dummy", c, 1, true, false)
   end
   current_scenario
 end
