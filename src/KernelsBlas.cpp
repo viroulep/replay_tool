@@ -9,6 +9,27 @@ using namespace std;
 
 extern hwloc_topology_t topo;
 
+void make_symmetric_positive_definite(const std::vector<Param *> *VP)
+{
+  ParamImpl<double *> *blockParam = getNthParam<0, double *>(VP);
+  ParamImpl<int> *tileSizeParam = getNthParam<0, int>(VP);
+  assert(blockParam && tileSizeParam && "One of the expected params to init_dpotrf_block is null!");
+  double *a = blockParam->get();
+  int blocksize = tileSizeParam->get();
+
+  // A symetric diagonally dominant matrix is symmetric positive definite
+  // So we bump the diagonal
+  int bump = 128;
+  for (int i = 0; i < blocksize; i++) {
+    for (int j = 0; j < blocksize; j++) {
+      if (i==j)
+        a[i*blocksize+j] += bump;
+      else if (i < j)
+        a[i*blocksize+j] = a[j*blocksize+i];
+    }
+  }
+}
+
 void init_dpotrf_block(const std::vector<Param *> *VP)
 {
   // FIXME: dirty copy paste but will do for now
@@ -31,21 +52,14 @@ void init_dpotrf_block(const std::vector<Param *> *VP)
   uniform_real_distribution<double> distribution(-1.0, 1.0);
 
   auto roll = bind(distribution, generator);
-  // A symetric diagonally dominant matrix is symmetric positive definite
-  // So we bump the diagonal
-  int bump = 128;
 
   for (int i = 0; i < tileSize; i++) {
     for (int j = 0; j < tileSize; j++) {
-      if (j < i)
-        block[i*tileSize + j] = block[j*tileSize+i];
-      else
-        block[i*tileSize+j] = roll();
-      if (i==j)
-        block[i*tileSize+j] += bump;
+      block[i*tileSize+j] = roll();
     }
   }
   blockParam->set(block);
+  make_symmetric_positive_definite(VP);
 
 }
 
@@ -122,5 +136,14 @@ void kernel_dpotrf(const std::vector<Param *> *VP)
   double *a = aParam->get();
   int tileSize = tileSizeParam->get();
   int ret = LAPACKE_dpotrf_work(LAPACK_COL_MAJOR, 'U', tileSize, a, tileSize);
-  std::cerr << "ret: " << ret << "\n";
+  if (ret != 0) {
+    for (int i = 0; i < tileSize; i++) {
+      for (int j = 0; j < tileSize; j++) {
+        cerr << a[i*tileSize+j] << ", ";
+      }
+      cerr << "\n";
+    }
+    cerr << "ret: " << ret << "\n";
+    exit(EXIT_FAILURE);
+  }
 }

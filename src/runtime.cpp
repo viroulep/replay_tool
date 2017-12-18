@@ -1,4 +1,5 @@
 #include "runtime.hpp"
+#include "KernelsBlas.hpp"
 
 #include <pthread.h>
 
@@ -260,14 +261,18 @@ void Runtime::work(int threadId) {
 #endif
       }
       for (int i = 0; i < task.repeat; i++) {
+        // FIXME: beurk
+        if (task.kernelName == "dpotrf") {
+          make_symmetric_positive_definite(task.kernelParams);
+        }
         for (AbstractWatcher *w : thread.watchers_) {
           if (task.kernelName != "dummy" && task.kernelName != "init_blas_bloc" && task.kernelName != "init_symmetric")
             w->before();
         }
         //TODO flush
-        if (kernels_.find(task.kernelName) != kernels_.end())
+        if (kernels_.find(task.kernelName) != kernels_.end()) {
           kernels_[task.kernelName](task.kernelParams);
-        else {
+        } else {
           cout << "Can't find the kernel " << task.kernelName << ", fatal error\n";
           exit(EXIT_FAILURE);
         }
