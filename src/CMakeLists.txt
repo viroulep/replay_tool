@@ -14,6 +14,6 @@ include_directories(${PROJECT_SOURCE_DIR}/include ${YAML_CPP_INCLUDE_DIR} ${PAPI
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -fno-rtti")
 
-add_executable(tool main.cpp runtime.cpp kernel.cpp KernelsBlas.cpp KernelsCheck.cpp)
+add_executable(tool main.cpp runtime.cpp kernel.cpp KernelsBlas.cpp KernelsCheck.cpp KernelsBandwidth.cpp)
 
 target_link_libraries(tool numa ${CMAKE_THREAD_LIBS_INIT} ${Hwloc_LIBRARIES} ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES} ${YAML_CPP_LIBRARIES} ${PAPI_LIBRARIES})
