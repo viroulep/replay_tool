@@ -2,8 +2,52 @@
 #include <lapacke.h>
 #include <cblas.h>
 #include <hwloc.h>
+#include <random>
+#include <iostream>
+
+using namespace std;
 
 extern hwloc_topology_t topo;
+
+void init_dpotrf_block(const std::vector<Param *> *VP)
+{
+  // FIXME: dirty copy paste but will do for now
+  ParamImpl<double *> *blockParam = getNthParam<0, double *>(VP);
+  ParamImpl<int> *tileSizeParam = getNthParam<0, int>(VP);
+  assert(blockParam && tileSizeParam && "One of the expected params to init_dpotrf_block is null!");
+
+  double *block = blockParam->get();
+  int tileSize = tileSizeParam->get();
+  int nElem = tileSize*tileSize;
+  hwloc_nodeset_t aff = hwloc_bitmap_alloc();
+  hwloc_bitmap_fill(aff);
+
+  if (block)
+    hwloc_free(topo, block, nElem*8);
+
+  block = (double*)hwloc_alloc_membind(topo, nElem*8, aff, HWLOC_MEMBIND_FIRSTTOUCH, 0);
+  hwloc_bitmap_free(aff);
+  default_random_engine generator;
+  uniform_real_distribution<double> distribution(-1.0, 1.0);
+
+  auto roll = bind(distribution, generator);
+  // A symetric diagonally dominant matrix is symmetric positive definite
+  // So we bump the diagonal
+  int bump = 128;
+
+  for (int i = 0; i < tileSize; i++) {
+    for (int j = 0; j < tileSize; j++) {
+      if (j < i)
+        block[i*tileSize + j] = block[j*tileSize+i];
+      else
+        block[i*tileSize+j] = roll();
+      if (i==j)
+        block[i*tileSize+j] += bump;
+    }
+  }
+  blockParam->set(block);
+
+}
 
 void init_blas_bloc(const std::vector<Param *> *VP)
 {
@@ -22,11 +66,13 @@ void init_blas_bloc(const std::vector<Param *> *VP)
 
   block = (double*)hwloc_alloc_membind(topo, nElem*8, aff, HWLOC_MEMBIND_FIRSTTOUCH, 0);
   hwloc_bitmap_free(aff);
-  int seed[] = {0,0,0,1};
-  LAPACKE_dlarnv(1, seed, nElem, block);
+  default_random_engine generator;
+  uniform_real_distribution<double> distribution(0.0, 1.0);
+
+  auto roll = bind(distribution, generator);
+
   for (int i = 0; i < nElem; i++)
-    if (block[i] < 0)
-      block[i] = (-block[i]);
+    block[i] = roll();
   blockParam->set(block);
 }
 
@@ -75,5 +121,6 @@ void kernel_dpotrf(const std::vector<Param *> *VP)
   assert(aParam  && tileSizeParam && "One of the expected params to DPOTRF is null!");
   double *a = aParam->get();
   int tileSize = tileSizeParam->get();
-  LAPACKE_dpotrf_work(LAPACK_COL_MAJOR, 'U', tileSize, a, tileSize);
+  int ret = LAPACKE_dpotrf_work(LAPACK_COL_MAJOR, 'U', tileSize, a, tileSize);
+  std::cerr << "ret: " << ret << "\n";
 }

@@ -33,6 +33,7 @@ int main(int argc, char **argv)
   Runtime::kernels_.insert(make_pair("dtrsm", kernel_dtrsm));
   Runtime::kernels_.insert(make_pair("dsyrk", kernel_dsyrk));
   Runtime::kernels_.insert(make_pair("dpotrf", kernel_dpotrf));
+  Runtime::kernels_.insert(make_pair("init_symmetric", init_dpotrf_block));
   Runtime::kernels_.insert(make_pair("check_affinity", check_affinity));
   Runtime::watchedKernels_.insert("dgemm");
   Runtime::watchedKernels_.insert("dtrsm");

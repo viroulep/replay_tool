@@ -45,7 +45,12 @@ papi = ["PAPI_L3_TCM", "PAPI_L3_DCR", "PAPI_L3_DCW"]
 (1..max_cores).each do |total_cores|
   last_core = total_cores - 1
   cores = (0..last_core)
-  scenario = generate_scenario(machine, kernel, "init_blas_bloc", args, blocksize, cores, remote_access, repeat)
+  init_name = if kernel == "dpotrf"
+                "init_symmetric"
+              else
+                "init_blas_bloc"
+              end
+  scenario = generate_scenario(machine, kernel, init_name, args, blocksize, cores, remote_access, repeat)
   scenario["scenarii"]["name"] = "#{base_filename}_#{total_cores}"
   scenario["scenarii"]["watchers"] = { "flops_#{kernel}" => ["bs"], "time" => ["toto"] }
   unless remote_access

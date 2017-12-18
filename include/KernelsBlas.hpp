@@ -4,6 +4,7 @@
 #include "kernel.hpp"
 
 
+void init_dpotrf_block(const std::vector<Param *> *VP);
 void init_blas_bloc(const std::vector<Param *> *VP);
 void kernel_dgemm(const std::vector<Param *> *VP);
 void kernel_dtrsm(const std::vector<Param *> *VP);
