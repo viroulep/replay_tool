@@ -31,6 +31,7 @@ ParamKind getParamKind(const string &name)
     .Case("double", PK_double)
     .Case("double*", PK_pdouble)
     .Case("float", PK_float)
+    .Case("bool", PK_bool)
     .Default(PK_unknown);
 }
 
@@ -45,6 +46,8 @@ Param *Param::createParam(const string &name, const YAML::Node &value)
       return new ParamImpl<float>(value.as<float>());
     case PK_pdouble:
       return new ParamImpl<double *>(nullptr);
+    case PK_bool:
+      return new ParamImpl<bool>(value.as<bool>());
     case PK_unknown:
       return nullptr;
   }
@@ -59,6 +62,8 @@ string Param::toString() const {
     return cast<ParamImpl<double*>>(this)->toString();
   } else if (isa<ParamImpl<float>>(this)) {
     return cast<ParamImpl<float>>(this)->toString();
+  } else if (isa<ParamImpl<bool>>(this)) {
+    return cast<ParamImpl<bool>>(this)->toString();
   } else {
     return "unknown";
   }

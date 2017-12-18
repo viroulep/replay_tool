@@ -156,6 +156,17 @@ class CycleWatcher : public Watcher<CycleEntry> {
     virtual std::string dataEntry(const std::string &name, int iteration) const;
 };
 
+using ArraySizeEntry = int;
+class ArraySizeWatcher : public Watcher<ArraySizeEntry> {
+  const ArraySizeEntry size_;
+  public:
+    ArraySizeWatcher(int threadId, ArraySizeEntry size) : Watcher(threadId), size_(size) {};
+    virtual void before();
+    virtual void after(const std::string &name);
+    virtual std::string dataHeader() const;
+    virtual std::string dataEntry(const std::string &name, int iteration) const;
+};
+
 using TimeClock = std::chrono::high_resolution_clock;
 using TimePoint = std::chrono::time_point<TimeClock>;
 using TimeDuration = std::chrono::duration<double>;

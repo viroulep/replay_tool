@@ -4,6 +4,7 @@
 #include <hwloc.h>
 
 
+#include "KernelsBandwidth.hpp"
 #include "KernelsBlas.hpp"
 #include "KernelsCheck.hpp"
 #include "runtime.hpp"
@@ -34,8 +35,11 @@ int main(int argc, char **argv)
   Runtime::kernels_.insert(make_pair("dsyrk", kernel_dsyrk));
   Runtime::kernels_.insert(make_pair("dpotrf", kernel_dpotrf));
   Runtime::kernels_.insert(make_pair("init_symmetric", init_dpotrf_block));
+  Runtime::kernels_.insert(make_pair("init_array", init_array));
+  Runtime::kernels_.insert(make_pair("copy", copy_array));
   Runtime::kernels_.insert(make_pair("check_affinity", check_affinity));
   Runtime::watchedKernels_.insert("dgemm");
+  Runtime::watchedKernels_.insert("copy");
   Runtime::watchedKernels_.insert("dtrsm");
   Runtime::watchedKernels_.insert("dsyrk");
   Runtime::watchedKernels_.insert("dpotrf");
@@ -97,6 +101,10 @@ int main(int argc, char **argv)
         auto params = entry.second.as<vector<string>>();
         int blockSize = dyn_cast_or_null<ParamImpl<int>>(dataMap[params.front()])->get();
         runtime.addWatcher<DPOTRFFlopsWatcher>(blockSize);
+      } else if (entry.first == "size") {
+        auto params = entry.second.as<vector<string>>();
+        int nElements = dyn_cast_or_null<ParamImpl<int>>(dataMap[params.front()])->get();
+        runtime.addWatcher<ArraySizeWatcher>(nElements);
       } else if (entry.first == "time") {
         runtime.addWatcher<TimeWatcher>();
       } else if (entry.first == "sync") {
@@ -121,10 +129,13 @@ int main(int argc, char **argv)
           int core = actionInfo["core"].as<int>();
           string kernelName = actionInfo["kernel"].as<string>();
           bool sync = false;
+          bool flush = false;
           int repeat = 1;
-          if (actionInfo["sync"].IsDefined())
+          if (!actionInfo["flush"].IsNull())
+            flush = actionInfo["flush"].as<bool>();
+          if (!actionInfo["sync"].IsNull())
             sync = actionInfo["sync"].as<bool>();
-          if (actionInfo["repeat"].IsDefined())
+          if (!actionInfo["repeat"].IsNull())
             repeat = actionInfo["repeat"].as<int>();
           vector<Param *> *params = new vector<Param *>;
           paramsAllocated.insert(params);
@@ -138,13 +149,14 @@ int main(int argc, char **argv)
           }
           debugString << ", on core " << core;
           debugString << ", repeat: " << repeat;
-          debugString << ", sync: " << sync << "\n";
-          if (0)
+          debugString << ", sync: " << sync;
+          debugString << ", flush: " << flush << "\n";
+          if (1)
             cout << debugString.str();
 
           if (Runtime::kernels_.find(kernelName) != Runtime::kernels_.end()) {
             // FIXME: That's ugly :(
-            runtime.run(core, Task(kernelName, params, sync, false, repeat, kernelName));
+            runtime.run(core, Task(kernelName, params, sync, flush, repeat, kernelName));
             ;
           } else {
             cout << "Can't find kernel " << kernelName << "\n";

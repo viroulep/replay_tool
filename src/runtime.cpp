@@ -1,5 +1,6 @@
 #include "runtime.hpp"
 #include "KernelsBlas.hpp"
+#include "KernelsBandwidth.hpp"
 
 #include <pthread.h>
 
@@ -60,6 +61,14 @@ void CycleWatcher::before()
 void CycleWatcher::after(const string &name)
 {
   watchMap_[name].push_back(getCycles() - cyclesBefore_);
+}
+
+void ArraySizeWatcher::before()
+{}
+
+void ArraySizeWatcher::after(const string &name)
+{
+  watchMap_[name].push_back(size_);
 }
 
 void TimeWatcher::before()
@@ -125,6 +134,11 @@ string TimeWatcher::dataHeader() const
   return " time-ms";
 }
 
+string ArraySizeWatcher::dataHeader() const
+{
+  return " size";
+}
+
 string PerfCtrWatcher::dataHeader() const
 {
   stringstream ss;
@@ -179,6 +193,13 @@ PerfCtrWatcher::PerfCtrWatcher(int threadId,
     events[i] = eventCode;
     eventsNames[i++] = s;
   }
+}
+
+string ArraySizeWatcher::dataEntry(const std::string &name, int iteration) const
+{
+  std::stringstream ss;
+  ss << " " << (watchMap_.at(name)[iteration]*8);
+  return ss.str();
 }
 
 string SyncWatcher::dataEntry(const std::string &name, int iteration) const
@@ -261,9 +282,12 @@ void Runtime::work(int threadId) {
 #endif
       }
       for (int i = 0; i < task.repeat; i++) {
-        // FIXME: beurk
         if (task.kernelName == "dpotrf") {
+          // FIXME: beurk
           make_symmetric_positive_definite(task.kernelParams);
+        }
+        if (task.flush) {
+          flush_cache();
         }
         for (AbstractWatcher *w : thread.watchers_) {
           if (task.kernelName != "dummy" && task.kernelName != "init_blas_bloc" && task.kernelName != "init_symmetric")

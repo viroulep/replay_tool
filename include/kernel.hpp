@@ -62,7 +62,7 @@ ParamImpl<T> *getNthParam(const std::vector<Param *> *V)
   std::size_t index = 0;
   ParamImpl<T> *ret;
   for (Param *P : *V) {
-    if ((ret = dyn_cast<ParamImpl<T>>(P))) {
+    if ((ret = dyn_cast_or_null<ParamImpl<T>>(P))) {
       if (index++ == N)
         return ret;
     }
