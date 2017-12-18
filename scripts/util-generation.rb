@@ -3,6 +3,7 @@ require 'yaml'
 require_relative './util.rb'
 
 def get_phy_core_from_i(machine, i)
+  # Turn 0,1,2,3,4,... to actual adjacent core on machine
   case machine
   when "brunch"
     # On brunch adjacent cores are 0,4,8,...
@@ -16,6 +17,10 @@ def get_phy_core_on_next_node_from_i(machine, i)
   case machine
   when "brunch"
     (get_phy_core_from_i(machine, i)+1)%96
+  when "idchire"
+    (get_phy_core_from_i(machine, i)+8)%192
+  when "idkat"
+    (get_phy_core_from_i(machine, i)+8)%48
   else
     i
   end
