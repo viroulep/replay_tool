@@ -1,6 +1,8 @@
 #include "KernelsBlas.hpp"
 #include <lapacke.h>
+extern "C" {
 #include <cblas.h>
+}
 #include <hwloc.h>
 #include <random>
 #include <iostream>
