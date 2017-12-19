@@ -35,7 +35,7 @@ nodes.each do |src|
   create_data(scenario, "n_elems", "int", n_elems)
   create_data(scenario, "random", "bool", false)
   current_scenario["scenarii"]["name"] = "#{base_filename}_#{src}"
-  current_scenario["scenarii"]["watchers"] = { "time" => ["toto"], "size" => n_elems }
+  current_scenario["scenarii"]["watchers"] = { "time" => ["toto"], "size" => ["n_elems"] }
   create_action(scenario, "init_array", get_first_core_from_node(machine, src), 1, false, false, "a", "n_elems", "random")
   core_used = nodes.map { |n| get_first_core_from_node(machine, n) }
   core_used << get_first_core_from_node(machine, src)+1
@@ -46,12 +46,12 @@ nodes.each do |src|
              get_first_core_from_node(machine, dest)
            end
     create_action(scenario, "init_array", core, 1, false, false, "b", "n_elems", "random")
-    create_action(scenario, "copy", core, 50, true, true, "a", "b", "bs")
+    create_action(scenario, "copy", core, 50, true, true, "a", "b", "n_elems")
     (core_used-[core]).each do |c|
       create_action(scenario, "dummy", c, 1, true, false)
     end
   end
   File.open(current_scenario["scenarii"]["name"].tr(' ', '_') + ".yml", 'w') do |file|
-    file.write(scenario.to_yaml)
+    file.write(current_scenario.to_yaml)
   end
 end
