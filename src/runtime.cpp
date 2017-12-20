@@ -287,7 +287,7 @@ void Runtime::work(int threadId) {
           flush_cache();
         }
         for (AbstractWatcher *w : thread.watchers_) {
-          if (task.kernelName != "dummy" && task.kernelName != "init_blas_bloc" && task.kernelName != "init_symmetric")
+          if (task.kernelName != "dummy" && task.kernelName != "init_blas_bloc" && task.kernelName != "init_symmetric" && task.kernelName != "init_array")
             w->before();
         }
         //TODO flush
@@ -298,7 +298,7 @@ void Runtime::work(int threadId) {
           exit(EXIT_FAILURE);
         }
         for (AbstractWatcher *w : thread.watchers_) {
-          if (task.kernelName != "sync" && task.kernelName != "init_blas_bloc" && task.kernelName != "init_symmetric")
+          if (task.kernelName != "dummy" && task.kernelName != "init_blas_bloc" && task.kernelName != "init_symmetric" && task.kernelName != "init_array")
             w->after(task.name);
         }
       }
