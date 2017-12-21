@@ -51,7 +51,7 @@ nodes.each do |src|
              get_first_core_from_node(machine, dest)
            end
     create_action(scenario, "init_array", core, 1, false, false, "b", "n_elems", "random")
-    create_action(scenario, "copy", core, 50, false, false, "a", "b", "n_elems")
+    create_action(scenario, "copy", core, 10, false, false, "a", "b", "n_elems")
     # setup a barrier at the end!
     core_used.each do |c|
       create_action(scenario, "dummy", c, 1, true, false)

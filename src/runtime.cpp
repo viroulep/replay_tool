@@ -247,10 +247,10 @@ void Runtime::work(int threadId) {
   while (thread.go || !myQueue.empty()) {
     if (!myQueue.empty()) {
       unique_lock<mutex> guard(thread.m);
-      Task &task = myQueue.front();
+      Task *task = myQueue.front();
       myQueue.pop_front();
       guard.unlock();
-      if (task.sync) {
+      if (task->sync) {
         // This gives roughly <200 cycles between the start of two synchronous tasks
         int localCurrent = current.load(std::memory_order_acquire);
         int position = there[localCurrent]++;
@@ -278,41 +278,37 @@ void Runtime::work(int threadId) {
         }
 #endif
       }
-      for (int i = 0; i < task.repeat; i++) {
-        if (task.kernelName == "dpotrf") {
+      for (int i = 0; i < task->repeat; i++) {
+        if (task->kernelName == "dpotrf") {
           // FIXME: beurk
-          make_symmetric_positive_definite(task.kernelParams);
+          make_symmetric_positive_definite(task->kernelParams);
         }
-        if (task.flush) {
+        if (task->flush) {
           flush_cache();
         }
         for (AbstractWatcher *w : thread.watchers_) {
-          if (task.kernelName != "dummy" && task.kernelName != "init_blas_bloc" && task.kernelName != "init_symmetric" && task.kernelName != "init_array")
+          if (task->kernelName != "dummy" && task->kernelName != "init_blas_bloc" && task->kernelName != "init_symmetric" && task->kernelName != "init_array")
             w->before();
         }
         //TODO flush
-        if (kernels_.find(task.kernelName) != kernels_.end()) {
-          kernels_[task.kernelName](task.kernelParams);
+        if (kernels_.find(task->kernelName) != kernels_.end()) {
+          kernels_[task->kernelName](task->kernelParams);
         } else {
-          cout << "Can't find the kernel " << task.kernelName << ", fatal error\n";
+          cout << "Can't find the kernel " << task->kernelName << ", fatal error\n";
           exit(EXIT_FAILURE);
         }
         for (AbstractWatcher *w : thread.watchers_) {
-          if (task.kernelName != "dummy" && task.kernelName != "init_blas_bloc" && task.kernelName != "init_symmetric" && task.kernelName != "init_array")
-            w->after(task.name);
+          if (task->kernelName != "dummy" && task->kernelName != "init_blas_bloc" && task->kernelName != "init_symmetric" && task->kernelName != "init_array")
+            w->after(task->name);
         }
       }
+      delete task;
     }
     //this_thread::sleep_for(chrono::seconds(1));
   }
 }
 
-void Runtime::run(int thread, Task &code)
-{
-  run(thread, move(code));
-}
-
-void Runtime::run(int thread, Task &&code)
+void Runtime::run(int thread, Task *code)
 {
   if (threads.count(thread) != 1) {
     cerr << "Trying to run on a non declared thread (" << thread << "), aborting\n";
@@ -320,7 +316,7 @@ void Runtime::run(int thread, Task &&code)
   }
   Thread &t = threads[thread];
   lock_guard<mutex> guard(t.m);
-  t.q.push_back(std::forward<Task>(code));
+  t.q.push_back(code);
 }
 
 void Runtime::done()
@@ -345,7 +341,7 @@ void Runtime::initThreads(const set<int> &physIds)
   Runtime::kernels_.insert(make_pair("dummy", dummy));
   for (int cpuId : physIds) {
     Thread &t = threads[cpuId];
-    t.q.push_back(Task("dummy", nullptr, true, false, 1, "start_sync"));
+    t.q.push_back(new Task("dummy", nullptr, true, false, 1, "start_sync"));
   }
   for (int cpuId : physIds)
     threads[cpuId].t = thread([this, cpuId] {work(cpuId);});

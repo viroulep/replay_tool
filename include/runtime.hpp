@@ -65,7 +65,7 @@ class AbstractWatcher;
 
 struct Thread {
   std::thread t;
-  std::deque<Task> q;
+  std::deque<Task *> q;
   std::mutex m;
   std::atomic_int go = ATOMIC_VAR_INIT(1);
   std::list<AbstractWatcher *> watchers_;
@@ -97,8 +97,7 @@ class Runtime {
   }
 
 
-  void run(int thread, Task &t);
-  void run(int thread, Task &&t);
+  void run(int thread, Task *t);
 
   void done();
 

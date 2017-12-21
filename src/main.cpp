@@ -119,7 +119,7 @@ int main(int argc, char **argv)
       case NodeType::Scalar:
         if (a.as<string>() == "sync") {
           for (int i : cores) {
-            runtime.run(i, Task("dummy", nullptr, true, false, 1, "dummy"));
+            runtime.run(i, new Task("dummy", nullptr, true, false, 1, "dummy"));
           }
         }
         break;
@@ -160,7 +160,7 @@ int main(int argc, char **argv)
 
           if (Runtime::kernels_.find(kernelName) != Runtime::kernels_.end()) {
             // FIXME: That's ugly :(
-            runtime.run(core, Task(kernelName, params, sync, flush, repeat, name));
+            runtime.run(core, new Task(kernelName, params, sync, flush, repeat, name));
             ;
           } else {
             cout << "Can't find kernel " << kernelName << "\n";
