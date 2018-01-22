@@ -65,7 +65,7 @@ class AbstractWatcher;
 
 struct Thread {
   std::thread t;
-  std::deque<Task> q;
+  std::deque<Task *> q;
   std::mutex m;
   std::atomic_int go = ATOMIC_VAR_INIT(1);
   std::list<AbstractWatcher *> watchers_;
@@ -97,8 +97,7 @@ class Runtime {
   }
 
 
-  void run(int thread, Task &t);
-  void run(int thread, Task &&t);
+  void run(int thread, Task *t);
 
   void done();
 
@@ -220,10 +219,10 @@ static double fadds_trsm(double m, double n)
 { return 0.5 * (n) * (m) * ((m)-1); }
 
 static double fmuls_potrf(double n)
-{ return (1./6.)*n*n*n + 0.5*n*n + (1./3.)*n; }
+{ return n * (n/6 + 0.5) * (n + 1/3); }
 
 static double fadds_potrf(double n)
-{ return (1./6.)*n*n*n - (1./6.)*n; }
+{ return n * n/6 * (n - 1/6); }
 //#define FMULS_POTRF(__n) ((double)(__n) * (((1. / 6.) * (double)(__n) + 0.5) * (double)(__n) + (1. / 3.)))
 //#define FADDS_POTRF(__n) ((double)(__n) * (((1. / 6.) * (double)(__n)      ) * (double)(__n) - (1. / 6.)))
 

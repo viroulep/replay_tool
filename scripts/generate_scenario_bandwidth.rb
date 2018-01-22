@@ -39,15 +39,21 @@ nodes.each do |src|
   create_action(scenario, "init_array", get_first_core_from_node(machine, src), 1, false, false, "a", "n_elems", "random")
   core_used = nodes.map { |n| get_first_core_from_node(machine, n) }
   core_used << get_first_core_from_node(machine, src)+1
+  # setup a barrier at the beginning
+  core_used.each do |c|
+    create_action(scenario, "dummy", c, 1, true, false)
+  end
   nodes.each do |dest|
+  #[0,1].each do |dest|
     core = if src == dest
              get_first_core_from_node(machine, dest) + 1
            else
              get_first_core_from_node(machine, dest)
            end
     create_action(scenario, "init_array", core, 1, false, false, "b", "n_elems", "random")
-    create_action(scenario, "copy", core, 50, true, true, "a", "b", "n_elems")
-    (core_used-[core]).each do |c|
+    create_action(scenario, "copy", core, 10, false, false, "a", "b", "n_elems")
+    # setup a barrier at the end!
+    core_used.each do |c|
       create_action(scenario, "dummy", c, 1, true, false)
     end
   end
