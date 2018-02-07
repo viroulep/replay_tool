@@ -11,5 +11,6 @@ void kernel_dgemm(const std::vector<Param *> *VP);
 void kernel_dtrsm(const std::vector<Param *> *VP);
 void kernel_dsyrk(const std::vector<Param *> *VP);
 void kernel_dpotrf(const std::vector<Param *> *VP);
+void kernel_naive_dgemm(const std::vector<Param *> *VP);
 
 #endif

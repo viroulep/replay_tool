@@ -30,6 +30,7 @@ int main(int argc, char **argv)
   // FIXME: annoying to manage...
   set<vector<Param *> *> paramsAllocated;
   Runtime::kernels_.insert(make_pair("init_blas_bloc", init_blas_bloc));
+  Runtime::kernels_.insert(make_pair("naive_dgemm", kernel_naive_dgemm));
   Runtime::kernels_.insert(make_pair("dgemm", kernel_dgemm));
   Runtime::kernels_.insert(make_pair("dtrsm", kernel_dtrsm));
   Runtime::kernels_.insert(make_pair("dsyrk", kernel_dsyrk));
@@ -38,6 +39,7 @@ int main(int argc, char **argv)
   Runtime::kernels_.insert(make_pair("init_array", init_array));
   Runtime::kernels_.insert(make_pair("copy", copy_array));
   Runtime::kernels_.insert(make_pair("check_affinity", check_affinity));
+  Runtime::watchedKernels_.insert("naive_dgemm");
   Runtime::watchedKernels_.insert("dgemm");
   Runtime::watchedKernels_.insert("copy");
   Runtime::watchedKernels_.insert("dtrsm");

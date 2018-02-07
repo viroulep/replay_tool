@@ -6,7 +6,7 @@ kernel = ARGV[0]
 args = []
 
 case kernel
-when "dgemm"
+when "naive_dgemm", "dgemm"
   args = ["a", "b", "c"]
 when "dtrsm", "dsyrk"
   args = ["a", "b"]
@@ -52,7 +52,12 @@ papi = ["PAPI_L3_TCM", "PAPI_L3_DCR", "PAPI_L3_DCW"]
               end
   scenario = generate_scenario(machine, kernel, init_name, args, blocksize, cores, remote_access, repeat)
   scenario["scenarii"]["name"] = "#{base_filename}_#{total_cores}"
-  scenario["scenarii"]["watchers"] = { "flops_#{kernel}" => ["bs"], "time" => ["toto"] }
+  flops_watcher = if kernel == "naive_dgemm"
+                    "flops_dgemm"
+                  else
+                    "flops_#{kernel}"
+                  end
+  scenario["scenarii"]["watchers"] = { flops_watcher => ["bs"], "time" => ["toto"] }
   unless remote_access
     scenario["scenarii"]["watchers"]["papi"] = papi
   end

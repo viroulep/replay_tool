@@ -110,6 +110,52 @@ void kernel_dgemm(const std::vector<Param *> *VP)
   ;
 }
 
+#define A(i,j) A[i*lda+j]
+#define B(i,j) B[i*lda+j]
+#define C(i,j) C[i*lda+j]
+
+int min(int a, int b)
+{
+  return a < b ? a : b;
+}
+
+void naive_dgemm(double *A, int lda, int M, double *B, int N, double *C, int K)
+{
+  // Just performs c = c + a * b
+  for (int i = 0; i < M; i++) {
+    for (int j = 0; j < N; ++j) {
+      double cij = C(i, j);
+      for (int k = 0; k < K; ++k)
+        cij += A(i, k) * B(k ,j);
+      C(i, j) = cij;
+    }
+  }
+}
+
+void kernel_naive_dgemm(const std::vector<Param *> *VP)
+{
+  const int BLOCK_SIZE = 64;
+  ParamImpl<double *> *aParam = getNthParam<0, double *>(VP);
+  ParamImpl<double *> *bParam = getNthParam<1, double *>(VP);
+  ParamImpl<double *> *cParam = getNthParam<2, double *>(VP);
+  ParamImpl<int> *tileSizeParam = getNthParam<0, int>(VP);
+  assert(aParam && bParam && cParam && tileSizeParam && "One of the expected params to DGEMM is null!");
+  double *a = aParam->get(), *b = bParam->get(), *c = cParam->get();
+  int tileSize = tileSizeParam->get();
+
+  for (int i = 0; i < tileSize; i += BLOCK_SIZE) {
+    for (int j = 0; j < tileSize; j += BLOCK_SIZE) {
+      for (int k = 0; k < tileSize; k += BLOCK_SIZE) {
+        int M = min(BLOCK_SIZE, tileSize-i),
+            N = min(BLOCK_SIZE, tileSize-j),
+            K = min(BLOCK_SIZE, tileSize-k);
+
+        naive_dgemm(a, tileSize, M, b, N, c, K);
+      }
+    }
+  }
+}
+
 void kernel_dtrsm(const std::vector<Param *> *VP)
 {
   ParamImpl<double *> *aParam = getNthParam<0, double *>(VP);
