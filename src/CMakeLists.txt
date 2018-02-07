@@ -6,18 +6,20 @@ find_package(Threads REQUIRED)
 #FIXME move kernels specific stuff somewhere else
 
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -fno-rtti")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -fno-rtti")
 
 add_executable(tool main.cpp runtime.cpp kernel.cpp KernelsBlas.cpp KernelsCheck.cpp KernelsBandwidth.cpp)
 
 if(USE_MKL)
   # TODO
   # find_package(MKL REQUIRED)
-  set_target_properties(tool PROPERTIES LINK_FLAGS "-L${MKLROOT}/lib/intel64 -Wl,--no-as-needed -lmkl_intel_ilp64 -lmkl_sequential -lmkl_core -lpthread -lm -ldl")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DMKL_ILP64 -m64 -I${MKLROOT}/include")
+  set_target_properties(tool PROPERTIES LINK_FLAGS "-L${MKLROOT}/lib/intel64 -Wl,--no-as-needed")
+  target_link_libraries(tool "-lmkl_intel_ilp64 -lmkl_sequential -lmkl_core -lpthread -lm -ldl")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DMKL_ILP64 -m64 -I${MKLROOT}/include -DUSE_MKL")
 elseif(USE_ATLAS)
-    set_target_properties(tool PROPERTIES LINK_FLAGS "-L/home/pviroule/install-atlas/lib -lcblas -latlas -llapack")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -I/home/pviroule/install-atlas/include")
+  set_target_properties(tool PROPERTIES LINK_FLAGS "-L/home/pviroule/install-atlas/lib")
+  target_link_libraries(tool "-lcblas -latlas -llapack")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -I/home/pviroule/install-atlas/include -DUSE_ATLAS")
 else()
   find_package(BLAS REQUIRED)
   find_package(LAPACK REQUIRED)
@@ -32,4 +34,4 @@ find_package(Hwloc 1.11 REQUIRED)
 
 include_directories(${PROJECT_SOURCE_DIR}/include ${YAML_CPP_INCLUDE_DIR} ${PAPI_INCLUDE_DIRS})
 
-target_link_libraries(tool numa ${CMAKE_THREAD_LIBS_INIT} ${Hwloc_LIBRARIES} ${YAML_CPP_LIBRARIES} ${PAPI_LIBRARIES})
+target_link_libraries(tool numa ${CMAKE_THREAD_LIBS_INIT} ${Hwloc_LIBRARIES} ${YAML_CPP_LIBRARIES} ${PAPI_LIBRARIES} ${BLAS_LIBRARIES})

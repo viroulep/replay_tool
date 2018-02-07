@@ -42,7 +42,8 @@ void copy_array(const vector<Param *> *VP)
   volatile double *a = aParam->get();
   volatile double *b = bParam->get();
   int size = sizeParam->get();
-  for (int i = 0; i < size; i++) {
-    b[i] = a[i];
-  }
+  memcpy((void*)a, (void*)b, size*sizeof(double));
+  //for (int i = 0; i < size; i++) {
+    //b[i] = a[i];
+  //}
 }

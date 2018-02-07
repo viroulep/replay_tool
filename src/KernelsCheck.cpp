@@ -1,7 +1,7 @@
 #include "KernelsCheck.hpp"
 #include <numaif.h>
 #include <hwloc.h>
-#include <lapacke.h>
+#include <random>
 #include <iostream>
 #include <sstream>
 
@@ -28,8 +28,15 @@ void check_affinity(const vector<Param *> *)
   //if (posix_memalign((void**)&array, getpagesize(), size))
     //perror("Error allocating memory\n");
   hwloc_bitmap_free(aff);
-  int seed[] = {0,0,0,1};
-  LAPACKE_dlarnv(1, seed, size/8, array);
+
+  default_random_engine generator;
+  uniform_real_distribution<double> distribution(-1.0, 1.0);
+
+  auto roll = bind(distribution, generator);
+  for (int i = 0; i < size/8; i++) {
+    array[i] = roll();
+  }
+
   stringstream ret;
   ret << "CPU: " << sched_getcpu() << ", base: " << (void*)array << ", ";
   for (int i = 0; i < 8; i++) {

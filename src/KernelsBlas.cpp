@@ -2,6 +2,9 @@
 #include <lapacke.h>
 extern "C" {
 #include <cblas.h>
+#ifdef USE_ATLAS
+  #include <clapack.h>
+#endif
 }
 #include <hwloc.h>
 #include <random>
@@ -138,7 +141,12 @@ void kernel_dpotrf(const std::vector<Param *> *VP)
   assert(aParam  && tileSizeParam && "One of the expected params to DPOTRF is null!");
   double *a = aParam->get();
   int tileSize = tileSizeParam->get();
+
+#ifdef USE_ATLAS
+  int ret = clapack_dpotrf(CblasRowMajor, CblasUpper, tileSize, a, tileSize);
+#else
   int ret = LAPACKE_dpotrf_work(LAPACK_COL_MAJOR, 'U', tileSize, a, tileSize);
+#endif
   if (ret != 0) {
     for (int i = 0; i < tileSize; i++) {
       for (int j = 0; j < tileSize; j++) {
