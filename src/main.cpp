@@ -130,6 +130,9 @@ int main(int argc, char **argv)
           auto actionInfo = a.as<map<string, Node>>();
           int core = actionInfo["core"].as<int>();
           string kernelName = actionInfo["kernel"].as<string>();
+          // 'void' is a nicer alias for 'dummy'
+          if (kernelName == "void")
+            kernelName = "dummy";
           string name = kernelName;
           bool sync = false;
           bool flush = false;
