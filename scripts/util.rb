@@ -15,6 +15,6 @@ def create_action(scenario, name, core, repeat, sync, flush, *params)
     }
 end
 
-def sync(scenario)
-    scenario["actions"] << "sync"
+def barrier(scenario)
+    scenario["actions"] << "barrier"
 end

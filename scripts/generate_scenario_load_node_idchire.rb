@@ -34,10 +34,11 @@ sources.each do |src|
       create_action(scenario, "init_array", src*8, 1, false, false, "a#{core}", "n_elems", "random")
       create_action(scenario, "init_array", core, 1, false, false, "b#{core}", "n_elems", "random")
     end
+    barrier(scenario)
     used_cores.uniq!
-    used_cores.each do |c|
-      create_action(scenario, "dummy", c, 1, true, false)
-    end
+    #used_cores.each do |c|
+      #create_action(scenario, "dummy", c, 1, true, false)
+    #end
     (0..d).each do |core|
       create_action(scenario, "copy", core, 10, true, false, "a#{core}", "b#{core}", "n_elems")
     end
